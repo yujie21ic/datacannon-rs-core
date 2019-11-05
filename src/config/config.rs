@@ -4,8 +4,8 @@
 use amiquip::ExchangeType;
 use num_cpus;
 use std::collections::HashMap;
-use celery_rs_core::amqp::amqp::AMQPConnectionInf;
-use crate::backend::backend::Backend;
+use crate::amqp::amqp::AMQPConnectionInf;
+use crate::backend::config::BackendConfig;
 
 
 #[derive(Clone, Debug)]
@@ -39,7 +39,7 @@ pub struct Admin{
 pub struct CeleryConfig{
     pub connection_inf: AMQPConnectionInf,
     pub broker_connection_retry: bool,
-    pub result_backend: Backend,
+    pub result_backend: BackendConfig,
     pub celery_cache_backend: Option<String>,
     pub send_events: bool,
     pub queues: Vec<String>,
@@ -93,7 +93,7 @@ pub struct CeleryConfig{
 
 impl CeleryConfig{
 
-    pub fn new(broker_inf: AMQPConnectionInf, backend: Backend) -> CeleryConfig{
+    pub fn new(broker_inf: AMQPConnectionInf, backend: BackendConfig) -> CeleryConfig{
         CeleryConfig{
             connection_inf: broker_inf,
             broker_connection_retry: true,
@@ -167,7 +167,12 @@ mod tests {
             Some(String::from("rtp*4500")),
             false
         );
-        let b = Backend{};
+        let b = BackendConfig{
+            url: "fake".to_string(),
+            username: None,
+            password: None,
+            transport_options: None,
+        };
         let c = CeleryConfig::new(broker_conf, b);
         let url = c.connection_inf.to_url();
         assert!(url.eq("amqp://dev:rtp*4500@127.0.0.1:5672/test"))
