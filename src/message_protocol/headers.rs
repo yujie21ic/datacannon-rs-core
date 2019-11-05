@@ -244,7 +244,7 @@ mod tests{
     use std::vec::Vec;
 
     use crate::argparse::args::{Arg, Args};
-    use crate::broker::headers::Headers;
+    use crate::message_protocol::headers::Headers;
 
     #[test]
     fn should_convert_to_json_map(){

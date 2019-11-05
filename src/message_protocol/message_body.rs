@@ -59,7 +59,7 @@ impl MessageBody{
 
 #[cfg(test)]
 mod tests{
-    use crate::broker::message_body::MessageBody;
+    use crate::message_protocol::message_body::MessageBody;
 
     #[test]
     fn should_convert_to_json_map(){

@@ -55,7 +55,7 @@ impl Properties{
 
 #[cfg(test)]
 mod tests{
-    use crate::broker::properties::Properties;
+    use crate::message_protocol::properties::Properties;
 
     #[test]
     fn should_convert_to_amqp_properties(){

@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\benches" isTestSource="true" />
-      <excludeFolder url="file://$MODULE_DIR$/../celery-rs-core\target" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

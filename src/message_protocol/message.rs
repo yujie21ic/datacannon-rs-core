@@ -8,7 +8,7 @@ use amiquip::{AmqpProperties, AmqpValue};
 
 use crate::argparse::kwargs::KwArgs;
 use crate::argparse::args::Args;
-use crate::broker::{properties::Properties, message_body::MessageBody, headers::Headers};
+use crate::message_protocol::{properties::Properties, message_body::MessageBody, headers::Headers};
 use serde_json::{Value, Map, to_string};
 use amq_protocol::uri::AMQPScheme::AMQP;
 
@@ -76,10 +76,10 @@ impl Message{
 mod tests{
     use super::*;
     use serde_json::{Value, from_str};
-    use crate::broker::properties::Properties;
-    use crate::broker::headers::Headers;
+    use crate::message_protocol::properties::Properties;
+    use crate::message_protocol::headers::Headers;
     use crate::argparse::args::{Args, Arg};
-    use crate::broker::message_body::MessageBody;
+    use crate::message_protocol::message_body::MessageBody;
     use crate::argparse::kwargs::KwArg;
     use amq_protocol::types::AMQPType;
     use amiquip::AmqpValue;
