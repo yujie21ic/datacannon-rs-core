@@ -1,7 +1,7 @@
 [package]
 name = "celery-rs-core"
-version = "0.1.0"
-authors = ["Andrew Evans <asevans48@gmail.com>"]
+version = "0.0.1"
+authors = ["Andrew Evans <aevans48@simplrinsites.com>"]
 edition = "2018"
 
 [dependencies]
