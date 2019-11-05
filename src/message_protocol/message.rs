@@ -5,13 +5,12 @@ Author Andrew Evans
 */
 
 use amiquip::{AmqpProperties, AmqpValue};
-
-use crate::argparse::kwargs::KwArgs;
-use crate::argparse::args::Args;
-use crate::message_protocol::{properties::Properties, message_body::MessageBody, headers::Headers};
-use serde_json::{Value, Map, to_string};
 use amq_protocol::uri::AMQPScheme::AMQP;
+use serde_json::{Map, to_string, Value};
 
+use crate::argparse::args::Args;
+use crate::argparse::kwargs::KwArgs;
+use crate::message_protocol::{headers::Headers, message_body::MessageBody, properties::Properties};
 
 /// Message objects to be packaged when ready
 pub struct Message{
@@ -74,15 +73,17 @@ impl Message{
 
 #[cfg(test)]
 mod tests{
-    use super::*;
-    use serde_json::{Value, from_str};
-    use crate::message_protocol::properties::Properties;
-    use crate::message_protocol::headers::Headers;
-    use crate::argparse::args::{Args, Arg};
-    use crate::message_protocol::message_body::MessageBody;
-    use crate::argparse::kwargs::KwArg;
-    use amq_protocol::types::AMQPType;
     use amiquip::AmqpValue;
+    use amq_protocol::types::AMQPType;
+    use serde_json::{from_str, Value};
+
+    use crate::argparse::args::{Arg, Args};
+    use crate::argparse::kwargs::KwArg;
+    use crate::message_protocol::headers::Headers;
+    use crate::message_protocol::message_body::MessageBody;
+    use crate::message_protocol::properties::Properties;
+
+    use super::*;
 
     #[test]
     fn create_new_message(){

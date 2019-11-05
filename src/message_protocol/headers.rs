@@ -5,6 +5,7 @@ Author Andrew Evans
 */
 
 use std::collections::BTreeMap;
+use std::process;
 
 use amiquip::AmqpValue;
 use amq_protocol::uri::AMQPScheme::AMQP;
@@ -13,7 +14,7 @@ use uuid::Uuid;
 
 use crate::argparse::{args::Args, kwargs::KwArgs};
 use crate::nodename::anon_name;
-use std::process;
+
 
 /// Soft and hard time limits
 #[derive(Clone, Debug)]

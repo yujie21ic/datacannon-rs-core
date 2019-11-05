@@ -7,7 +7,6 @@ Author Andrew Evans
 use amiquip::AmqpProperties;
 use uuid::Uuid;
 
-
 /// Properties
 pub struct Properties{
     pub correlation_id: String,

@@ -4,7 +4,7 @@ Message body for the broker
 Author Andrew Evans
 */
 
-use serde_json::{Value, Map};
+use serde_json::{Map, Value};
 
 
 /// Message body structure
