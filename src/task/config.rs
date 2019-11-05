@@ -4,6 +4,7 @@ Basic configuration for the tasks
 Author Andrew Evans
 */
 
+
 /// Task Configuration
 pub struct TaskConfig{
     task_name: String,

@@ -2,9 +2,10 @@
 Utilities for handling values
 */
 
+use std::collections::BTreeMap;
+
 use amiquip::AmqpValue;
 use serde_json::Value;
-use std::collections::BTreeMap;
 
 
 pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
@@ -51,11 +52,12 @@ pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
 
 #[cfg(test)]
 mod tests{
-    use serde_json::Value;
-    use crate::serde_utils::val_handler::value_to_amqp_value;
     use amiquip::AmqpValue;
     use amq_protocol::types::FieldArray;
     use serde_json::Map;
+    use serde_json::Value;
+
+    use crate::serde_utils::val_handler::value_to_amqp_value;
 
     #[test]
     fn should_convert_array_to_amqp_value(){

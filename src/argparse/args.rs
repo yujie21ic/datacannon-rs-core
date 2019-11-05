@@ -4,11 +4,13 @@ Parser given arguments into a json string
 Author Andrew Evans
 */
 
+use std::vec::Vec;
+
 use amiquip::AmqpValue;
 use amq_protocol::types::AMQPType;
-use std::vec::Vec;
-use serde_json::Value;
 use amq_protocol::uri::AMQPScheme::AMQP;
+use serde_json::Value;
+
 use crate::serde_utils::val_handler::value_to_amqp_value;
 
 
@@ -85,12 +87,10 @@ impl Args{
 
 #[cfg(test)]
 mod tests{
+    use amq_protocol::types::AMQPType;
+    use serde_json::Value;
 
     use super::*;
-
-    use serde_json::Value;
-    use amq_protocol::types::AMQPType;
-
 
     #[test]
     fn should_create_an_argument(){

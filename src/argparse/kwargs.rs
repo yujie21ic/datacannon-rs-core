@@ -4,13 +4,14 @@ Kwargs for the program
 Author Andrew Evans
 */
 
-use amiquip::AmqpValue;
-use amq_protocol::types::AMQPType;
+use std::collections::{BTreeMap, HashMap};
 use std::vec::Vec;
 
+use amiquip::AmqpValue;
+use amq_protocol::types::AMQPType;
+use serde_json::{Map, Value};
+
 use crate::argparse::args::Arg;
-use std::collections::{HashMap, BTreeMap};
-use serde_json::{Value, Map};
 
 
 /// Keyword argument
@@ -95,11 +96,10 @@ impl KwArgs{
 
 #[cfg(test)]
 mod tests{
-
-    use super::*;
     use amq_protocol::types::AMQPType;
     use serde_json::Value;
 
+    use super::*;
 
     #[test]
     fn should_create_an_kwarg_argument(){

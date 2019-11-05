@@ -10,7 +10,6 @@ use std::fmt;
 /// Thrown when the connection pool is empty
 pub struct ExchangeError;
 
-
 /// Display implementation for when the pool is empty
 impl fmt::Display for ExchangeError{
 
