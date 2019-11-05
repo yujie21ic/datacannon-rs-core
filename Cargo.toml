@@ -3,6 +3,8 @@ name = "celery-rs-core"
 version = "0.0.1"
 authors = ["Andrew Evans <aevans48@simplrinsites.com>"]
 edition = "2018"
+description = "Core utilities for a celery client and worker in rust"
+license = "Apache License, Version 2.0"
 
 [dependencies]
 amiquip = "0.3.2"
