@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="RUST_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../celery-rs-core\benches" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../celery-rs-core\target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
