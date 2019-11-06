@@ -1,6 +1,7 @@
 pub mod amqp;
 pub mod argparse;
 pub mod backend;
+pub mod broker;
 pub mod config;
 pub mod connection;
 pub mod message_protocol;
