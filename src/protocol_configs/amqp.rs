@@ -94,7 +94,7 @@ impl AMQPConnectionInf{
 
 #[cfg(test)]
 mod tests{
-    use crate::amqp::amqp::AMQPConnectionInf;
+    use crate::protocol_configs::amqp::AMQPConnectionInf;
 
     #[test]
     pub fn test_create_url(){

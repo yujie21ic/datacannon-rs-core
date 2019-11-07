@@ -4,7 +4,7 @@ RPC backend handler
 Author Andrew Evans
 */
 
-use crate::amqp::amqp::AMQPConnectionInf;
+use crate::protocol_configs::amqp::AMQPConnectionInf;
 use crate::security::ssl::SSLConfig;
 use crate::security::uaa::UAAConfig;
 use crate::backend::backend_trait::Backend;

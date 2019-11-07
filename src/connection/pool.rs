@@ -1,0 +1,3 @@
+/*
+An enum to store connection pools
+*/

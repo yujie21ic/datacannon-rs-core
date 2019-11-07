@@ -6,7 +6,7 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 use std::borrow::{Borrow, BorrowMut};
 use std::ops::Deref;
-use crate::amqp::amqp::AMQPConnectionInf;
+use crate::protocol_configs::amqp::AMQPConnectionInf;
 use mio::net::TcpStream;
 use std::net::SocketAddr;
 use std::str::FromStr;

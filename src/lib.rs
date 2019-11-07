@@ -1,4 +1,4 @@
-pub mod amqp;
+pub mod protocol_configs;
 pub mod argparse;
 pub mod backend;
 pub mod broker;

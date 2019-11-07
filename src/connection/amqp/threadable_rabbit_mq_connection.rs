@@ -6,7 +6,7 @@ Author Andrew Evans
 
 
 use amiquip::Connection;
-use crate::amqp::amqp::AMQPConnectionInf;
+use crate::protocol_configs::amqp::AMQPConnectionInf;
 
 
 /// struct storage

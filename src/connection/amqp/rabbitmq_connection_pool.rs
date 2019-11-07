@@ -13,7 +13,7 @@ use std::vec::Vec;
 use crate::connection::pool_errors::PoolIsEmptyError;
 use crate::connection::amqp::rabbitmq_connection_factory::{Credential, RabbitMQConnectionFactory};
 use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
-use crate::amqp::amqp::AMQPConnectionInf;
+use crate::protocol_configs::amqp::AMQPConnectionInf;
 
 
 /// Structure storing the pool
