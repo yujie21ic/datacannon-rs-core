@@ -20,6 +20,7 @@ Existing features included in release 0.1:
     - AMQP/RabbitMQ broker support
     - Elastic Search backend Support
     - Redis backend support
+    - RPC backend support
     - Client and Workers
     - Routing Key Support
     - Message protocol support and serialization
