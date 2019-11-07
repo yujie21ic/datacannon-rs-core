@@ -9,6 +9,18 @@ use crate::backend::config::BackendConfig;
 
 
 #[derive(Clone, Debug)]
+pub enum ConfigValue{
+    Bool(bool),
+    String(String),
+    Char(char),
+    Int(i64),
+    Long(f64),
+    Double(f32),
+    Map(HashMap<String, ConfigValue>),
+}
+
+
+#[derive(Clone, Debug)]
 pub enum QueuePersistenceType{
     PERSISTENT,
     NONPERSISTENT
@@ -89,6 +101,13 @@ pub struct CeleryConfig{
     pub celerymon_log_level: String,
     pub celerymon_log_file: Option<String>,
     pub num_connections: usize,
+    pub ha_policy: String,
+    pub create_missing_queues: bool,
+    pub worker_direct: bool,
+    pub broker_login_method: String,
+    pub broker_transport_options: Option<HashMap<String, ConfigValue>>,
+    pub task_queue_max_priority: Option<i8>,
+    pub task_default_priority: i8,
 }
 
 impl CeleryConfig{
@@ -147,6 +166,13 @@ impl CeleryConfig{
             celerymon_log_level: String::from("INFO"),
             celerymon_log_file: None,
             num_connections: num_cpus::get(),
+            ha_policy: "all".to_string(),
+            create_missing_queues: true,
+            worker_direct: true,
+            broker_login_method: "AMQPLAIN".to_string(),
+            broker_transport_options: None,
+            task_queue_max_priority: None,
+            task_default_priority: 0,
         }
     }
 }

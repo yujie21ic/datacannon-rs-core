@@ -10,16 +10,17 @@ use crate::security::uaa::UAAConfig;
 use crate::backend::backend_trait::Backend;
 
 
+/// The RPC handler
 #[derive(Clone, Debug)]
 pub struct RPCHandler{
-    pub conn_inf: AMQPConnectionInf,
-    pub exchange: Option<String>,
-    pub exchange_type: Option<String>,
-    pub persistent: bool,
-    pub serializer: Option<String>,
-    pub auto_delete: bool,
-    pub ssl_config: Option<SSLConfig>,
-    pub uaa_config: Option<UAAConfig>,
+    conn_inf: AMQPConnectionInf,
+    exchange: Option<String>,
+    exchange_type: Option<String>,
+    persistent: bool,
+    serializer: Option<String>,
+    auto_delete: bool,
+    ssl_config: Option<SSLConfig>,
+    uaa_config: Option<UAAConfig>,
 }
 
 
@@ -41,7 +42,54 @@ impl Backend for RPCHandler {
 /// contains the constructor and unique functions
 impl RPCHandler{
 
-    fn new() {
+    fn do_send(&self){
 
+    }
+
+    /// get the connection information
+    fn get_conn_inf(&self) -> &AMQPConnectionInf{
+        &self.conn_inf
+    }
+
+    /// whether the data persists
+    fn is_persistent(&self) -> bool{
+        self.persistent
+    }
+
+    /// whether to automatically delete
+    fn is_auto_delete(&self) -> bool{
+        self.auto_delete
+    }
+
+    /// obtain the ssl config option
+    fn get_ssl_config(&self) -> Option<SSLConfig>{
+        self.ssl_config.clone()
+    }
+
+    /// obtain the uaa configuration
+    fn get_uaa_config(&self) -> Option<UAAConfig>{
+        self.uaa_config.clone()
+    }
+
+    /// create a new handler
+    fn new(
+        conn_inf: AMQPConnectionInf,
+        exchange: Option<String>,
+        exchange_type: Option<String>,
+        persistent: bool,
+        serializer: Option<String>,
+        auto_delete: bool,
+        ssl_config: Option<SSLConfig>,
+        uaa_config: Option<UAAConfig>) -> RPCHandler{
+        RPCHandler{
+            conn_inf: conn_inf,
+            exchange: exchange,
+            exchange_type: exchange_type,
+            persistent: persistent,
+            serializer: serializer,
+            auto_delete: auto_delete,
+            ssl_config: ssl_config,
+            uaa_config: uaa_config,
+        }
     }
 }

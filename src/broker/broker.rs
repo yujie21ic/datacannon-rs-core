@@ -5,7 +5,7 @@ Author Andrew Evans
 */
 
 use std::any::Any;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env::Args;
 use std::error::Error;
 use std::iter::Map;
@@ -22,10 +22,15 @@ use crate::connection::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPoo
 use crate::connection::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
 use crate::task::config::TaskConfig;
+use crate::amqp::router::Router;
+use crate::amqp::queues::AMQPQueue;
+use crate::broker::queues::Queues;
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
     config: CeleryConfig,
+    routers: Option<HashMap<String, Router>>,
+    queues: Option<Queues>,
 }
 
 
@@ -147,9 +152,11 @@ impl RabbitMQBroker{
     }
 
     /// Create a new broker
-    pub fn new(config: CeleryConfig) -> RabbitMQBroker{
+    pub fn new(config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>) -> RabbitMQBroker{
         RabbitMQBroker{
             config: config.clone(),
+            queues: queues,
+            routers: routers,
         }
     }
 }
@@ -198,7 +205,7 @@ mod tests {
     #[test]
     fn should_create_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone());
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -218,7 +225,7 @@ mod tests {
     #[test]
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone());
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -239,7 +246,7 @@ mod tests {
     #[test]
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone());
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -271,7 +278,7 @@ mod tests {
     #[test]
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone());
+        let rmq = RabbitMQBroker::new(cnf.clone(), None, None);
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -349,7 +356,7 @@ mod tests {
     fn should_work_with_tokio(){
         let rt = Runtime::new().unwrap();
         let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone());
+        let rmq = RabbitMQBroker::new(cnf.clone(), None, None);
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
