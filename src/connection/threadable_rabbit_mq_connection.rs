@@ -6,6 +6,7 @@ Author Andrew Evans
 
 
 use amiquip::Connection;
+use crate::amqp::amqp::AMQPConnectionInf;
 
 
 /// struct storage
@@ -18,7 +19,7 @@ pub struct ThreadableRabbitMQConnection{
 impl ThreadableRabbitMQConnection {
 
     /// Create a new connection
-    pub fn new(url: String) -> Result<ThreadableRabbitMQConnection, &'static str> {
+    pub fn new(url: String, conn_inf: &AMQPConnectionInf) -> Result<ThreadableRabbitMQConnection, &'static str> {
         let conn_result = Connection::insecure_open(url.as_str());
         if (conn_result.is_ok()) {
             let mut conn = conn_result.unwrap();

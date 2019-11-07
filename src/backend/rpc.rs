@@ -41,7 +41,7 @@ impl Backend for RPCHandler {
 /// contains the constructor and unique functions
 impl RPCHandler{
 
-    fn new() -> RPCHandler{
+    fn new() {
 
     }
 }

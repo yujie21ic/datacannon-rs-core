@@ -54,6 +54,14 @@ impl AMQPConnectionInf{
         self.is_ssl.clone()
     }
 
+    pub fn get_ssl_config(&self) -> &Option<SSLConfig>{
+        &self.ssl_config
+    }
+
+    pub fn get_uaa_config(&self) -> &Option<UAAConfig>{
+        &self.uaa_config
+    }
+
     pub fn to_url(&self) -> String {
         let cinf = self.clone();
         let mut url = "".to_string();

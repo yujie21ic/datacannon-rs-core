@@ -20,7 +20,7 @@ pub struct RedisHandler{
 
 impl Backend for RedisHandler {
 
-    fn check_for_result(&self){
+    fn get(&self){
 
     }
 

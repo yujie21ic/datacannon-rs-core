@@ -28,12 +28,14 @@ impl RabbitMQConnectionFactory {
 
     /// Open a connection and channel. Return a connection object with blocking access
     fn create_connection_object(&self, url: String) -> Result<RabbitMQConnection, &'static str> {
-        RabbitMQConnection::new(url)
+        let cinf = &self.conn_inf;
+        RabbitMQConnection::new(url, cinf)
     }
 
     /// create a threadable connection object
     fn create_threadable_connection_object(&self, url: String) -> Result<ThreadableRabbitMQConnection, &'static str> {
-        ThreadableRabbitMQConnection::new(url)
+        let cinf = &self.conn_inf;
+        ThreadableRabbitMQConnection::new(url, cinf)
     }
 
     /// Create a RabbitMQ Connection
