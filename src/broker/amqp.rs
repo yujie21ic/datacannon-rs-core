@@ -14,7 +14,7 @@ use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptio
 use serde_json::{to_string, Value};
 use serde_json::map::Values;
 
-use crate::protocol_configs::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
+use crate::error::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
 use crate::protocol_configs::amqp::AMQPConnectionInf;
 use crate::argparse::kwargs::KwArgs;
 use crate::config::config::CeleryConfig;
@@ -22,8 +22,8 @@ use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnect
 use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
 use crate::task::config::TaskConfig;
-use crate::protocol_configs::router::Router;
 use crate::broker::queues::Queues;
+use crate::router::router::Router;
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
