@@ -9,3 +9,4 @@ pub mod nodename;
 pub mod serde_utils;
 pub mod task;
 pub mod security;
+pub mod queues;

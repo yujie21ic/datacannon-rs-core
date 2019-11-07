@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use amiquip::{Channel, Connection};
 
-use crate::connection::rabbitmq_connection_utils;
-use crate::connection::rabbitmq_connection_utils::RabbitMQConnection;
-use crate::connection::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
+use crate::connection::amqp::rabbitmq_connection_utils;
+use crate::connection::amqp::rabbitmq_connection_utils::RabbitMQConnection;
+use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 use crate::amqp::amqp::AMQPConnectionInf;
 
 ///Credentials object
@@ -71,7 +71,7 @@ mod tests {
     use std::ops::DerefMut;
     use std::thread;
 
-    use crate::connection::rabbitmq_connection_utils;
+    use crate::connection::amqp::rabbitmq_connection_utils;
 
     use super::*;
 

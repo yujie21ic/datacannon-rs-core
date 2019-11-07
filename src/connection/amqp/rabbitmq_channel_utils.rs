@@ -5,7 +5,7 @@ Author Andrew Evans
 */
 
 use amiquip::{ExchangeType, ExchangeDeclareOptions, QueueDeclareOptions, FieldTable, QueueDeleteOptions, Channel};
-use crate::connection::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
+use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 
 
 /// Create the exchange from an existing channel

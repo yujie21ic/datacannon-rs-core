@@ -18,12 +18,11 @@ use crate::amqp::{exchange_error::ExchangeError, publish_error::PublishError, qu
 use crate::amqp::amqp::AMQPConnectionInf;
 use crate::argparse::kwargs::KwArgs;
 use crate::config::config::CeleryConfig;
-use crate::connection::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
-use crate::connection::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
+use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
+use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
 use crate::task::config::TaskConfig;
 use crate::amqp::router::Router;
-use crate::amqp::queues::AMQPQueue;
 use crate::broker::queues::Queues;
 
 /// RabbitMQ Broker
@@ -178,7 +177,7 @@ mod tests {
     use crate::backend::config::BackendConfig;
     use crate::broker::broker::{AMQPBroker, RabbitMQBroker};
     use crate::config::config::CeleryConfig;
-    use crate::connection::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
+    use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 
     use super::*;
     use crate::security::ssl::SSLConfig;

@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::vec::Vec;
 
 use crate::connection::pool_errors::PoolIsEmptyError;
-use crate::connection::rabbitmq_connection_factory::{Credential, RabbitMQConnectionFactory};
-use crate::connection::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
+use crate::connection::amqp::rabbitmq_connection_factory::{Credential, RabbitMQConnectionFactory};
+use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
 use crate::amqp::amqp::AMQPConnectionInf;
 
 

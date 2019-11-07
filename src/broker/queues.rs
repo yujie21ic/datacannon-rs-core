@@ -5,10 +5,10 @@ Author Andrew Evans
 */
 
 
-use crate::amqp::queues::AMQPQueue;
 use crate::config::config::CeleryConfig;
 use amiquip::ExchangeType;
 use std::collections::HashSet;
+use crate::queues::amqp::AMQPQueue;
 
 
 /// stores queues for the broker
