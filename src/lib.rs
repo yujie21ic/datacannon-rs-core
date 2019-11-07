@@ -12,3 +12,4 @@ pub mod security;
 pub mod queues;
 pub mod error;
 pub mod router;
+pub mod registry;

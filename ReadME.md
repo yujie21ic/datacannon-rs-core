@@ -11,6 +11,9 @@ I really need this library for an existing time-sensitive project though.
 This is not a 1 for 1 match but should implement all features at some point.
 Rust can also optimize some things such as using threading.
 
+## See
+
+https://docs.celeryproject.org/en/latest/index.html
 
 ## Features
 
@@ -23,6 +26,7 @@ Existing features included in release 0.1:
     - RPC backend support
     - Client and Workers
     - Routing Key Support
+    - Registry support
     - Message protocol support and serialization
     - Identification matching Celery
     - Threadable connections in worker ;)
@@ -38,6 +42,7 @@ Features to include later (0.2+):
     - monitoring support (PRIORITY)
     - celerybeat support (PRIORITY)
     - Rust implemented LevelDB Broker
+    - Upgrade Functions
     - 1 to 1 feature matching with celery and maybe some extras
 
 Sorry guys, I am one man on a very specific mission.

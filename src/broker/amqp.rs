@@ -24,6 +24,7 @@ use crate::message_protocol::{headers::Headers, message::Message, message_body::
 use crate::task::config::TaskConfig;
 use crate::broker::queues::Queues;
 use crate::router::router::Router;
+use crate::broker::broker::Broker;
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
@@ -46,7 +47,7 @@ pub trait AMQPBroker{
     fn create_exchange(config: CeleryConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeType) -> Result<bool, ExchangeError>;
 
     /// send task to the broker
-    fn send_task(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError>;
+    fn do_send(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError>;
 }
 
 
@@ -113,7 +114,7 @@ impl AMQPBroker for RabbitMQBroker{
     }
 
     /// send a task to the broker
-    fn send_task(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError> {
+    fn do_send(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError> {
         let cfg = config.clone();
         let mut amq_properties = props.convert_to_amqp_properties();
         let amq_headers = headers.convert_to_btree_map();
@@ -138,6 +139,13 @@ impl AMQPBroker for RabbitMQBroker{
             let e = PublishError;
             Err(e)
         }
+    }
+}
+
+
+impl Broker for RabbitMQBroker{
+    fn send_task(){
+        
     }
 }
 

@@ -1,0 +1,3 @@
+/*
+Group result containing an Id
+*/

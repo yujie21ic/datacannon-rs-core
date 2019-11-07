@@ -1,0 +1,5 @@
+/*
+Standard async result
+
+Author Andrew Evans
+*/
