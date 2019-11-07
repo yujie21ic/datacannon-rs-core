@@ -4,6 +4,9 @@ AMQP Utilities
 Author Andrew Evans
 */
 
+use crate::security::ssl::SSLConfig;
+use crate::security::uaa::UAAConfig;
+
 
 /// Struct for connection information
 #[derive(Clone, Debug)]
@@ -15,6 +18,8 @@ pub struct AMQPConnectionInf{
     username: Option<String>,
     password: Option<String>,
     is_ssl: bool,
+    ssl_config: Option<SSLConfig>,
+    uaa_config: Option<UAAConfig>,
 }
 
 
@@ -63,7 +68,7 @@ impl AMQPConnectionInf{
         url
     }
 
-    pub fn new(protocol: String, host: String, port: i64, vhost: Option<String>, username: Option<String>, password: Option<String>, is_ssl: bool) -> AMQPConnectionInf{
+    pub fn new(protocol: String, host: String, port: i64, vhost: Option<String>, username: Option<String>, password: Option<String>, is_ssl: bool, ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> AMQPConnectionInf{
         AMQPConnectionInf{
             protocol: protocol,
             host: host,
@@ -72,6 +77,8 @@ impl AMQPConnectionInf{
             username: username,
             password: password,
             is_ssl: is_ssl,
+            ssl_config: ssl_config,
+            uaa_config: uaa_config,
         }
     }
 }
@@ -83,7 +90,7 @@ mod tests{
 
     #[test]
     pub fn test_create_url(){
-        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false);
+        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false, None, None);
         let url = cinf.to_url();
         assert!(url.eq("amqp://127.0.0.1:3030"));
     }

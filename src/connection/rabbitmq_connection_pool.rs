@@ -116,7 +116,9 @@ mod tests{
             Some(String::from("test")),
             Some(String::from("dev")),
             Some(String::from("rtp*4500")),
-            false
+            false,
+            None,
+            None
         )
     }
 

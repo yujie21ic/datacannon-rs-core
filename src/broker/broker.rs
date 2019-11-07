@@ -174,15 +174,17 @@ mod tests {
     use crate::connection::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 
     use super::*;
+    use crate::security::ssl::SSLConfig;
+    use crate::security::uaa::UAAConfig;
 
-    fn get_config() -> CeleryConfig {
+    fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CeleryConfig {
         let protocol = "amqp".to_string();
         let host = "127.0.0.1".to_string();
         let port = 5672;
         let vhost = Some("test".to_string());
         let username = Some("dev".to_string());
         let password = Some("rtp*4500".to_string());
-        let broker_conn = AMQPConnectionInf::new(protocol, host, port, vhost, username, password, false);
+        let broker_conn = AMQPConnectionInf::new(protocol, host, port, vhost, username, password, false, ssl_config, uaa_config);
         let backend = BackendConfig{
             url: "rpc://".to_string(),
             username: None,
@@ -195,7 +197,7 @@ mod tests {
 
     #[test]
     fn should_create_queue(){
-        let conf = get_config();
+        let conf = get_config(None, None);
         let rmq = RabbitMQBroker::new(conf.clone());
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
@@ -215,7 +217,7 @@ mod tests {
 
     #[test]
     fn should_create_and_bind_queue_to_exchange(){
-        let conf = get_config();
+        let conf = get_config(None, None);
         let rmq = RabbitMQBroker::new(conf.clone());
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
@@ -236,7 +238,7 @@ mod tests {
 
     #[test]
     fn should_send_task_to_queue(){
-        let conf = get_config();
+        let conf = get_config(None, None);
         let rmq = RabbitMQBroker::new(conf.clone());
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
@@ -268,7 +270,7 @@ mod tests {
 
     #[test]
     fn should_work_with_threads(){
-        let cnf = get_config();
+        let cnf = get_config(None, None);
         let rmq = RabbitMQBroker::new(cnf.clone());
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
@@ -346,7 +348,7 @@ mod tests {
     #[test]
     fn should_work_with_tokio(){
         let rt = Runtime::new().unwrap();
-        let cnf = get_config();
+        let cnf = get_config(None, None);
         let rmq = RabbitMQBroker::new(cnf.clone());
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);

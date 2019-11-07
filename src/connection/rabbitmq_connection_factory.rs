@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn should_create_new(){
-        let aci = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false);
+        let aci = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false, None, None);
         let f = RabbitMQConnectionFactory::new(aci);
         let cred = Credential{
             username: String::from("dev"),
