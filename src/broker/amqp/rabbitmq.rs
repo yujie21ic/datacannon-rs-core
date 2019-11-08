@@ -27,12 +27,14 @@ use crate::broker::queues::Queues;
 use crate::router::router::Router;
 use crate::broker::broker::Broker;
 use crate::argparse::argtype::ArgType;
+use crate::connection::pool::Pool;
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
     config: CeleryConfig,
     routers: Option<HashMap<String, Router>>,
     queues: Option<Queues>,
+    pool: ThreadableRabbitMQConnectionPool,
 }
 
 
@@ -128,9 +130,14 @@ impl AMQPBroker for RabbitMQBroker{
 }
 
 
+/// Broker implementation
 impl Broker for RabbitMQBroker{
-    fn send_task(&self, task: String, args: Vec<ArgType>){
 
+    /// send a task
+    fn send_task(&self, pool: &mut Pool, task: String, args: Vec<ArgType>){
+        if let Pool::RabbitMQ(pool) = pool{
+            pool.get_connection();
+        }
     }
 }
 
@@ -139,11 +146,17 @@ impl Broker for RabbitMQBroker{
 impl RabbitMQBroker{
 
     /// Create a new broker
-    pub fn new(config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>) -> RabbitMQBroker{
+    pub fn new(config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>) -> RabbitMQBroker{
+        let mut min_conn = num_cpus::get() - 1;
+        if min_connections.is_some(){
+            min_conn = min_connections.unwrap();
+        }
+        let pool = ThreadableRabbitMQConnectionPool::new(config.connection_inf.clone(), min_conn);
         RabbitMQBroker{
             config: config.clone(),
             queues: queues,
             routers: routers,
+            pool: pool,
         }
     }
 }
@@ -163,13 +176,14 @@ mod tests {
 
     use crate::protocol_configs::amqp::AMQPConnectionInf;
     use crate::backend::config::BackendConfig;
-    use crate::broker::amqp::rabbitmq::{AMQPBroker, RabbitMQBroker};
+    use crate::broker::amqp::rabbitmq::RabbitMQBroker;
     use crate::config::config::CeleryConfig;
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 
     use super::*;
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
+    use crate::broker::amqp::broker_trait::AMQPBroker;
 
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CeleryConfig {
@@ -193,7 +207,7 @@ mod tests {
     #[test]
     fn should_create_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -213,7 +227,7 @@ mod tests {
     #[test]
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -234,7 +248,7 @@ mod tests {
     #[test]
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -266,7 +280,7 @@ mod tests {
     #[test]
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone(), None, None);
+        let rmq = RabbitMQBroker::new(cnf.clone(), None, None, Some(1));
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -344,7 +358,7 @@ mod tests {
     fn should_work_with_tokio(){
         let rt = Runtime::new().unwrap();
         let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone(), None, None);
+        let rmq = RabbitMQBroker::new(cnf.clone(), None, None, Some(1));
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
