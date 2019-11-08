@@ -6,18 +6,7 @@ use num_cpus;
 use std::collections::HashMap;
 use crate::protocol_configs::amqp::AMQPConnectionInf;
 use crate::backend::config::BackendConfig;
-
-
-#[derive(Clone, Debug)]
-pub enum ConfigValue{
-    Bool(bool),
-    String(String),
-    Char(char),
-    Int(i64),
-    Long(f64),
-    Double(f32),
-    Map(HashMap<String, ConfigValue>),
-}
+use crate::argparse::argtype::ArgType;
 
 
 #[derive(Clone, Debug)]
@@ -105,7 +94,7 @@ pub struct CeleryConfig{
     pub create_missing_queues: bool,
     pub worker_direct: bool,
     pub broker_login_method: String,
-    pub broker_transport_options: Option<HashMap<String, ConfigValue>>,
+    pub broker_transport_options: Option<HashMap<String, ArgType>>,
     pub task_queue_max_priority: Option<i8>,
     pub task_default_priority: i8,
 }

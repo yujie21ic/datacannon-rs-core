@@ -14,6 +14,7 @@ use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptio
 use serde_json::{to_string, Value};
 use serde_json::map::Values;
 
+use crate::broker::amqp::broker_trait::AMQPBroker;
 use crate::error::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
 use crate::protocol_configs::amqp::AMQPConnectionInf;
 use crate::argparse::kwargs::KwArgs;
@@ -25,29 +26,13 @@ use crate::task::config::TaskConfig;
 use crate::broker::queues::Queues;
 use crate::router::router::Router;
 use crate::broker::broker::Broker;
+use crate::argparse::argtype::ArgType;
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
     config: CeleryConfig,
     routers: Option<HashMap<String, Router>>,
     queues: Option<Queues>,
-}
-
-
-/// AMQP Broker
-pub trait AMQPBroker{
-
-    /// bind queue to the exchange
-    fn bind_to_exchange(config: CeleryConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError>;
-
-    /// create a queue
-    fn create_queue(config: CeleryConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>;
-
-    /// create an exchange
-    fn create_exchange(config: CeleryConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeType) -> Result<bool, ExchangeError>;
-
-    /// send task to the broker
-    fn do_send(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError>;
 }
 
 
@@ -144,8 +129,8 @@ impl AMQPBroker for RabbitMQBroker{
 
 
 impl Broker for RabbitMQBroker{
-    fn send_task(){
-        
+    fn send_task(&self, task: String, args: Vec<ArgType>){
+
     }
 }
 
@@ -178,13 +163,14 @@ mod tests {
 
     use crate::protocol_configs::amqp::AMQPConnectionInf;
     use crate::backend::config::BackendConfig;
-    use crate::broker::amqp::{AMQPBroker, RabbitMQBroker};
+    use crate::broker::amqp::rabbitmq::{AMQPBroker, RabbitMQBroker};
     use crate::config::config::CeleryConfig;
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 
     use super::*;
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
+
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CeleryConfig {
         let protocol = "amqp".to_string();
@@ -268,7 +254,7 @@ mod tests {
             let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
             let reply_queue = Uuid::new_v4();
             let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-            let br = RabbitMQBroker::send_task(conf, &channel,props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+            let br = RabbitMQBroker::do_send(conf, &channel,props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
             c.connection.close();
             assert!(br.is_ok());
             assert!(rq.is_ok());
@@ -303,7 +289,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::send_task(conf.clone(), &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(conf.clone(), &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
@@ -323,7 +309,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::send_task(conf.clone(), &channelb, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(conf.clone(), &channelb, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
@@ -343,7 +329,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::send_task(conf.clone(), &channelc, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(conf.clone(), &channelc, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
@@ -381,7 +367,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::send_task(conf, &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(conf, &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 });
             }
             rt.shutdown_on_idle();

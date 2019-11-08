@@ -12,14 +12,16 @@ use crate::broker::queues::Queues;
 pub struct BrokerConfig{
     conn_pool: Pool,
     queues: Queues,
-    routers:
 }
 
 
 /// broker configuration implementation
 impl BrokerConfig{
 
-    fn new(conn_pool: Pool) -> BrokerConfig{
-
+    fn new(conn_pool: Pool, queues: Queues) -> BrokerConfig {
+        BrokerConfig{
+            conn_pool: conn_pool,
+            queues: queues,
+        }
     }
 }
