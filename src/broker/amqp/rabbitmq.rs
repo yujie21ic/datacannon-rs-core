@@ -5,36 +5,43 @@ Author Andrew Evans
 */
 
 use std::any::Any;
+use std::borrow::BorrowMut;
 use std::collections::{BTreeMap, HashMap};
 use std::env::Args;
 use std::error::Error;
-use std::iter::Map;
 
 use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, Queue, QueueDeclareOptions};
 use serde_json::{to_string, Value};
 use serde_json::map::Values;
+use tokio;
 
-use crate::broker::amqp::broker_trait::AMQPBroker;
-use crate::error::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
-use crate::protocol_configs::amqp::AMQPConnectionInf;
+use crate::argparse::argtype::ArgType;
 use crate::argparse::kwargs::KwArgs;
+use crate::broker::amqp::broker_trait::AMQPBroker;
+use crate::broker::broker::Broker;
+use crate::broker::queues::Queues;
 use crate::config::config::CeleryConfig;
 use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
-use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
-use crate::task::config::TaskConfig;
-use crate::broker::queues::Queues;
-use crate::router::router::Router;
-use crate::broker::broker::Broker;
-use crate::argparse::argtype::ArgType;
 use crate::connection::pool::Pool;
+use crate::error::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
+use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
+use crate::protocol_configs::amqp::AMQPConnectionInf;
+use crate::router::router::Router;
+use crate::task::config::TaskConfig;
+use std::future::Future;
+use tokio::sync::mpsc::{Sender, Receiver};
+
 
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
     config: CeleryConfig,
     routers: Option<HashMap<String, Router>>,
     queues: Option<Queues>,
+    num_futures: usize,
     pool: ThreadableRabbitMQConnectionPool,
+    app_receiver: Receiver<Message>,
+    backend_sender: Option<Sender<Message>>,
 }
 
 
@@ -42,7 +49,7 @@ pub struct RabbitMQBroker{
 impl AMQPBroker for RabbitMQBroker{
 
     /// create the exchange
-    fn create_exchange(config: CeleryConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeType) -> Result<bool, ExchangeError> {
+    fn create_exchange(config: &CeleryConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeType) -> Result<bool, ExchangeError> {
         let mut opts = ExchangeDeclareOptions::default();
         opts.durable = durable;
         let r = channel.exchange_declare(exchange_type, exchange, opts);
@@ -54,7 +61,7 @@ impl AMQPBroker for RabbitMQBroker{
     }
 
     /// create a queue
-    fn create_queue(config: CeleryConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
+    fn create_queue(config: &CeleryConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
         let mut qopts = QueueDeclareOptions::default();
         if declare_exchange{
             let mut etype = ExchangeType::Direct;
@@ -90,7 +97,7 @@ impl AMQPBroker for RabbitMQBroker{
     }
 
     /// bind a queue to an exchange
-    fn bind_to_exchange(config: CeleryConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError> {
+    fn bind_to_exchange(config: &CeleryConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError> {
         let args = FieldTable::new();
         let r = channel.queue_bind(queue, exchange, routing_key, args);
         if r.is_ok(){
@@ -101,7 +108,7 @@ impl AMQPBroker for RabbitMQBroker{
     }
 
     /// send a task to the broker
-    fn do_send(config: CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError> {
+    fn do_send(config: &CeleryConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError> {
         let cfg = config.clone();
         let mut amq_properties = props.convert_to_amqp_properties();
         let amq_headers = headers.convert_to_btree_map();
@@ -133,11 +140,26 @@ impl AMQPBroker for RabbitMQBroker{
 /// Broker implementation
 impl Broker for RabbitMQBroker{
 
-    /// send a task
-    fn send_task(&self, pool: &mut Pool, task: String, args: Vec<ArgType>){
-        if let Pool::RabbitMQ(pool) = pool{
-            pool.get_connection();
+    /// start the broker futures
+    fn setup(&mut self, rt: tokio::runtime::Runtime){
+        for i in 0..self.num_futures{
+            
         }
+    }
+
+    /// teardown the broker
+    fn teardown(&mut self){
+
+    }
+
+    /// close all connections and thus the broker. shut down futures first
+    fn close(&mut self){
+        self.pool.close_pool();
+    }
+
+    /// send a task
+    fn send_task(&mut self, task: String, args: Vec<ArgType>,  app_sender: Sender<Message>) {
+
     }
 }
 
@@ -145,8 +167,17 @@ impl Broker for RabbitMQBroker{
 /// Rabbit MQ broker
 impl RabbitMQBroker{
 
+    /// get a channel from the pool
+    pub fn get_channel(&mut self) -> &Channel{
+        let conn_result = self.pool.get_connection();
+        let conn = conn_result.unwrap();
+        let ch = conn.unwrap().connection.open_channel();
+        self.pool.add_connection();
+        &ch.unwrap()
+    }
+
     /// Create a new broker
-    pub fn new(config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>) -> RabbitMQBroker{
+    pub fn new(config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: Receiver<Message>, num_futures: usize) -> RabbitMQBroker{
         let mut min_conn = num_cpus::get() - 1;
         if min_connections.is_some(){
             min_conn = min_connections.unwrap();
@@ -157,6 +188,9 @@ impl RabbitMQBroker{
             queues: queues,
             routers: routers,
             pool: pool,
+            num_futures: num_futures,
+            app_receiver: receiver,
+            backend_sender: sender,
         }
     }
 }
@@ -165,7 +199,6 @@ impl RabbitMQBroker{
 #[cfg(test)]
 mod tests {
     use std::borrow::BorrowMut;
-    use std::ops::Deref;
     use std::thread;
     use std::thread::JoinHandle;
 
@@ -174,16 +207,16 @@ mod tests {
     use tokio::runtime::Runtime;
     use uuid::Uuid;
 
-    use crate::protocol_configs::amqp::AMQPConnectionInf;
     use crate::backend::config::BackendConfig;
+    use crate::broker::amqp::broker_trait::AMQPBroker;
     use crate::broker::amqp::rabbitmq::RabbitMQBroker;
     use crate::config::config::CeleryConfig;
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
-
-    use super::*;
+    use crate::protocol_configs::amqp::AMQPConnectionInf;
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
-    use crate::broker::amqp::broker_trait::AMQPBroker;
+
+    use super::*;
 
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CeleryConfig {
@@ -205,9 +238,15 @@ mod tests {
     }
 
     #[test]
+    fn should_work_with_an_application(){
+
+    }
+
+    #[test]
     fn should_create_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1), Some(s), r, 1);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -216,7 +255,7 @@ mod tests {
             let mut c = rconn.unwrap();
             let channel = c.connection.open_channel(None).unwrap();
             let uuid = format!("{}", Uuid::new_v4());
-            let rq = RabbitMQBroker::create_queue(conf.clone(), &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+            let rq = RabbitMQBroker::create_queue(&conf, &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
             c.connection.close();
             assert!(rq.is_ok());
         }else{
@@ -227,7 +266,8 @@ mod tests {
     #[test]
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1), Some(s), r, 1);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -236,8 +276,8 @@ mod tests {
             let mut c = rconn.unwrap();
             let channel = c.connection.open_channel(None).unwrap();
             let uuid = format!("{}", Uuid::new_v4());
-            let rq = RabbitMQBroker::create_queue(conf.clone(), &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
-            RabbitMQBroker::bind_to_exchange(conf.clone(), &channel,  "test_exchange".to_string(), "test_queue".to_string(), "test_routing_key".to_string());
+            let rq = RabbitMQBroker::create_queue(&conf, &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+            RabbitMQBroker::bind_to_exchange(&conf, &channel,  "test_exchange".to_string(), "test_queue".to_string(), "test_routing_key".to_string());
             c.connection.close();
             assert!(rq.is_ok());
         }else{
@@ -248,7 +288,8 @@ mod tests {
     #[test]
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1));
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(conf.clone(), None, None, Some(1), Some(s), r,1);
         let conn_inf = conf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -259,7 +300,7 @@ mod tests {
             let uuid = format!("{}", Uuid::new_v4());
 
             // create queue if necessary
-            let rq = RabbitMQBroker::create_queue(conf.clone(), &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+            let rq = RabbitMQBroker::create_queue(&conf, &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
 
             // create and send task
             let body = MessageBody::new(None, None, None, None);
@@ -268,7 +309,7 @@ mod tests {
             let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
             let reply_queue = Uuid::new_v4();
             let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-            let br = RabbitMQBroker::do_send(conf, &channel,props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+            let br = RabbitMQBroker::do_send(&conf, &channel,props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
             c.connection.close();
             assert!(br.is_ok());
             assert!(rq.is_ok());
@@ -280,7 +321,8 @@ mod tests {
     #[test]
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone(), None, None, Some(1));
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(cnf.clone(), None, None, Some(1), Some(s), r,1);
         let conn_inf = cnf.connection_inf.clone();
         let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
         pool.start();
@@ -294,7 +336,7 @@ mod tests {
                     let uuid = format!("{}", Uuid::new_v4());
                     // create queue if necessary
 
-                    let rq = RabbitMQBroker::create_queue(conf.clone(), &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let rq = RabbitMQBroker::create_queue(&conf, &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
 
                     // create and send task
                     let body = MessageBody::new(None, None, None, None);
@@ -303,7 +345,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::do_send(conf.clone(), &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(&conf, &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
@@ -314,7 +356,7 @@ mod tests {
                     let uuid = format!("{}", Uuid::new_v4());
                     // create queue if necessary
 
-                    let rq = RabbitMQBroker::create_queue(conf.clone(), &channelb, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let rq = RabbitMQBroker::create_queue(&conf, &channelb, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
 
                     // create and send task
                     let body = MessageBody::new(None, None, None, None);
@@ -323,7 +365,7 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::do_send(conf.clone(), &channelb, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(&conf, &channelb, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
@@ -334,7 +376,7 @@ mod tests {
                     let uuid = format!("{}", Uuid::new_v4());
                     // create queue if necessary
 
-                    let rq = RabbitMQBroker::create_queue(conf.clone(), &channelc, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let rq = RabbitMQBroker::create_queue(&conf, &channelc, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
 
                     // create and send task
                     let body = MessageBody::new(None, None, None, None);
@@ -343,48 +385,13 @@ mod tests {
                     let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
                     let reply_queue = Uuid::new_v4();
                     let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::do_send(conf.clone(), &channelc, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
+                    let br = RabbitMQBroker::do_send(&conf, &channelc, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
                 }
             });
 
             ja.join();
             jb.join();
             jc.join();
-            c.connection.server_properties();
-        }
-    }
-
-    #[test]
-    fn should_work_with_tokio(){
-        let rt = Runtime::new().unwrap();
-        let cnf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(cnf.clone(), None, None, Some(1));
-        let conn_inf = cnf.connection_inf.clone();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 2);
-        pool.start();
-        let rconn = pool.get_connection();
-        if rconn.is_ok() {
-            let mut c = rconn.unwrap();
-            for i in 0..8000 {
-                let channel = c.connection.open_channel(None).unwrap();
-                let conf = cnf.clone();
-                let j = rt.spawn(async move {
-                    let uuid = format!("{}", Uuid::new_v4());
-                    // create queue if necessary
-
-                    let rq = RabbitMQBroker::create_queue(conf.clone(), &channel, true, String::from("test_queue"), true, uuid, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
-
-                    // create and send task
-                    let body = MessageBody::new(None, None, None, None);
-                    let uuid = Uuid::new_v4();
-                    let ustr = format!("{}", uuid);
-                    let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
-                    let reply_queue = Uuid::new_v4();
-                    let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-                    let br = RabbitMQBroker::do_send(conf, &channel, props, headers, body, Some("test_exchange".to_string()), Some("test_routing_key".to_string()));
-                });
-            }
-            rt.shutdown_on_idle();
             c.connection.server_properties();
         }
     }

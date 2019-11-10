@@ -12,6 +12,7 @@ use crate::argparse::args::Args;
 use crate::argparse::kwargs::KwArgs;
 use crate::message_protocol::{headers::Headers, message_body::MessageBody, properties::Properties};
 
+
 /// Message objects to be packaged when ready
 pub struct Message{
     pub properties: Properties,
