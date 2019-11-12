@@ -8,6 +8,7 @@ use serde_json::{Map, Value};
 
 
 /// Message body structure
+#[derive(Clone, Debug)]
 pub struct MessageBody{
     pub chord: Option<String>,
     pub chain: Option<String>,

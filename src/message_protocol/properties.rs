@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 
 /// Properties
+#[derive(Clone, Debug)]
 pub struct Properties{
     pub correlation_id: String,
     pub content_type: String,

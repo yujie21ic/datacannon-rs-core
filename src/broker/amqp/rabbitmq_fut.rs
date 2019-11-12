@@ -15,15 +15,24 @@ use crate::broker::queues::Queues;
 use std::collections::HashMap;
 use crate::router::router::Router;
 use amiquip::Channel;
+use crate::app::send_rpc::SendArgs;
+use crate::broker::amqp::broker_trait::AMQPBroker;
 
 
 /// create a rabbitmq broker future
-async fn send_task_future(channel: Channel, celery_config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: &mut Receiver<Message>, num_futures: usize) -> Result<(), &'static str> {
-    ///config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: Receiver<Message>, num_futures: usize
+async fn send_task_future(channel: Channel, celery_config: CeleryConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: &mut Receiver<SendArgs>, num_futures: usize) -> Result<(), &'static str> {
+
     let conf = celery_config.clone();
     loop{
-        let m = receiver.recv().await.unwrap();
-        RabbitMQBroker::do_send()
+        let args = receiver.recv().await.unwrap();
+        let m = args.message;
+        let props = m.properties.clone();
+        let headers = m.headers.clone();
+        let body = m.body.clone();
+        let kwargs = m.kwargs.clone();
+        let exchange = args.exchange;
+        let routing_key = args.routing_key;
+        RabbitMQBroker::do_send(&celery_config, &channel, props, headers, body, exchange, routing_key);
     }
     Ok(())
 }

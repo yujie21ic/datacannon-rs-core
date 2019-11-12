@@ -168,12 +168,12 @@ impl Broker for RabbitMQBroker{
 impl RabbitMQBroker{
 
     /// get a channel from the pool
-    pub fn get_channel(&mut self) -> &Channel{
+    pub fn get_channel(&mut self) -> Channel{
         let conn_result = self.pool.get_connection();
-        let conn = conn_result.unwrap();
-        let ch = conn.unwrap().connection.open_channel();
+        let mut conn = conn_result.unwrap();
+        let ch = conn.connection.open_channel(None);
         self.pool.add_connection();
-        &ch.unwrap()
+        ch.unwrap()
     }
 
     /// Create a new broker
