@@ -1,6 +1,6 @@
 [package]
-name = "celery-rs-core"
-version = "0.0.6"
+name = "datacannon-rs-core"
+version = "0.0.1"
 authors = ["Andrew Evans <aevans48@simplrinsites.com>"]
 edition = "2018"
 description = "Core utilities for a celery client and worker in rust"
@@ -12,7 +12,7 @@ amq-protocol = "3.0.0"
 mio = "0.6.19"
 openssl-sys = "0.9"
 openssl = "0.10"
-kafka = "0.8.0"
+rdkafka = "0.21.0"
 serde = "1.0.102"
 serde_json = "1.0.40"
 uuid = {version = "0.8.1", features = ["serde", "v4"]}

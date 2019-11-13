@@ -1,17 +1,15 @@
-# Celery Rust Core
-Core shared libraries between the client, worker, and other packages.
+# Data Cannon Core
+Data Cannon contains the shared libraries for the client and worker in this distributed
+job queue.
 
-## Current Support
+This framework is like Celery but for Rust and uses asyncio. Celery v2.0
+message protcol is used.
 
-A Kombu-like port will need to be written for this library. Until then, RabbitMQ and 
-anything supporting AMQP will work as a broker. Backends use the BackendConfig.
-
-I really need this library for an existing time-sensitive project though.
-
-This is not a 1 for 1 match but should implement all features at some point.
-Rust can also optimize some things such as using threading.
+More will follow...
 
 ## See
+
+For more information related to job queues:
 
 https://docs.celeryproject.org/en/latest/index.html
 
@@ -35,18 +33,16 @@ Existing features included in release 0.1:
     
 Features to include later (0.2+):
 
-    - Redis Broker support
-    - SQS Broker Support
     - Creation of a messaging framework like Kombu
     - All other backends
     - OAuth2.0 support (RabbitMQ, Elasticsearch)
     - monitoring support (PRIORITY)
-    - celerybeat support (PRIORITY)
+    - healthcecking support (PRIORITY)
     - Rust implemented LevelDB Broker
     - Upgrade Functions
     - 1 to 1 feature matching with celery and maybe some extras
 
-Sorry guys, I am one man on a very specific mission.
+Sorry guys, I am one man on a very specific mission. All thigns considered v0.2+ is 6 months off.
 
 ## License
 

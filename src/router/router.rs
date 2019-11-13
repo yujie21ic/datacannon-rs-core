@@ -1,12 +1,15 @@
 /*
-Router for tasks
+Router for tasks. The router maintains a key and a list of available queues or topics.
 
 Author Andrew Evans
 */
 
 
-pub struct Router{
+use crate::broker::queues::Queues;
 
+pub struct Router{
+    routing_key: String,
+    queues: Vec<Queues>,
 }
 
 

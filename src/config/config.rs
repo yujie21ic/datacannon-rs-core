@@ -39,6 +39,7 @@ pub struct Admin{
 #[derive(Clone, Debug)]
 pub struct CeleryConfig{
     pub connection_inf: AMQPConnectionInf,
+    pub kafka_inf: KafkaConnectionInf,
     pub broker_connection_retry: bool,
     pub result_backend: BackendConfig,
     pub celery_cache_backend: Option<String>,
