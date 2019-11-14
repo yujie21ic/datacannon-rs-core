@@ -217,6 +217,7 @@ mod tests {
     use crate::security::uaa::UAAConfig;
 
     use super::*;
+    use crate::connection::kafka::kafka_connection::KafkaConnectionInf;
 
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CeleryConfig {
@@ -233,7 +234,13 @@ mod tests {
             password: None,
             transport_options: None,
         };
-        let conf = CeleryConfig::new(broker_conn, backend);
+        let kinf = KafkaConnectionInf{
+            ack_timeout: 0,
+            num_acks: 0,
+            host: "".to_string(),
+            port: "".to_string(),
+        };
+        let conf = CeleryConfig::new(broker_conn, backend, kinf);
         conf
     }
 

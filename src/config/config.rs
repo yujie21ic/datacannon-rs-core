@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use crate::protocol_configs::amqp::AMQPConnectionInf;
 use crate::backend::config::BackendConfig;
 use crate::argparse::argtype::ArgType;
+use crate::connection::kafka::kafka_connection::KafkaConnectionInf;
 
 
 #[derive(Clone, Debug)]
@@ -102,9 +103,10 @@ pub struct CeleryConfig{
 
 impl CeleryConfig{
 
-    pub fn new(broker_inf: AMQPConnectionInf, backend: BackendConfig) -> CeleryConfig{
+    pub fn new(broker_inf: AMQPConnectionInf, backend: BackendConfig, kafka_inf: KafkaConnectionInf) -> CeleryConfig{
         CeleryConfig{
             connection_inf: broker_inf,
+            kafka_inf: kafka_inf,
             broker_connection_retry: true,
             result_backend: backend,
             celery_cache_backend: None,
@@ -191,7 +193,12 @@ mod tests {
             password: None,
             transport_options: None,
         };
-        let c = CeleryConfig::new(broker_conf, b);
+        let kinf = KafkaConnectionInf{
+            ack_timeout: 0,
+            num_acks: 0,
+            host: "".to_string(),
+            port: "".to_string()};
+        let c = CeleryConfig::new(broker_conf, b, kinf);
         let url = c.connection_inf.to_url();
         assert!(url.eq("amqp://dev:rtp*4500@127.0.0.1:5672/test"))
     }

@@ -4,9 +4,8 @@ Configuration for backends
 Author Andrew Evans
 */
 
-use crate::backend::rpc::RPCHandler;
-use crate::backend::redis::RedisHandler;
-use crate::backend::elasticsearch::ElasticHandler;
+use crate::backend::rpc::rpc::RPCHandler;
+use crate::backend::redis::redis::RedisHandler;
 
 
 /// Supported backend types with classes
@@ -14,7 +13,6 @@ use crate::backend::elasticsearch::ElasticHandler;
 pub enum AvailableBackend{
     RPCBackend(RPCHandler),
     RedisBackend(RedisHandler),
-    ElasticBackend(ElasticHandler),
     Void,
 }
 
@@ -51,9 +49,6 @@ mod tests{
         match be{
             AvailableBackend::RedisBackend(be) =>{
                 assert_eq!(be.max_connections, 2);
-            }
-            AvailableBackend::ElasticBackend(be) =>{
-                assert!(false);
             }
             AvailableBackend::RPCBackend(be) =>{
                 assert!(false)

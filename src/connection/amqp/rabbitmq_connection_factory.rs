@@ -39,14 +39,9 @@ impl RabbitMQConnectionFactory {
     }
 
     /// Create a RabbitMQ Connection
-    pub fn create_connection(&self, credentials: Option<Credential>, is_ssl: bool) -> Result<RabbitMQConnection, &'static str> {
-        if(credentials.is_some()){
-            let url = self.conn_inf.to_url();
-            self.create_connection_object(url)
-        }else{
-            let url = self.conn_inf.to_url();
-            self.create_connection_object(url)
-        }
+    pub fn create_connection(&self, is_ssl: bool) -> Result<RabbitMQConnection, &'static str> {
+        let url = self.conn_inf.to_url();
+        self.create_connection_object(url)
     }
 
 
@@ -77,13 +72,9 @@ mod tests {
 
     #[test]
     fn should_create_new(){
-        let aci = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false, None, None);
+        let aci = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 5672, Some("test".to_string()), Some("dev".to_string()), Some("rtp*4500".to_string()), false, None, None);
         let f = RabbitMQConnectionFactory::new(aci);
-        let cred = Credential{
-            username: String::from("dev"),
-            password: String::from("rtp*4500"),
-        };
-        let conn_object = f.create_connection(Some(cred), false).ok().unwrap();
+        let conn_object = f.create_connection(false).ok().unwrap();
         conn_object.channel.close();
         conn_object.connection.close();
     }

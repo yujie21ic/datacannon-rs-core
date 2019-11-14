@@ -102,4 +102,11 @@ mod tests{
         let url = cinf.to_url();
         assert!(url.eq("amqp://127.0.0.1:3030"));
     }
+
+    #[test]
+    pub fn should_use_credentials(){
+        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, Some("test".to_string()), Some("123".to_string()), false, None, None);
+        let url = cinf.to_url();
+        assert!(url.eq("amqp://test:123@127.0.0.1:3030"));
+    }
 }

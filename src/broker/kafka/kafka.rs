@@ -7,15 +7,17 @@ Implementation
 Author Andrew Evans
 */
 
-use crate::config::config::CeleryConfig;
 use std::collections::HashMap;
-use crate::router::router::Router;
-use crate::broker::queues::Queues;
-use crate::broker::broker::Broker;
-use crate::argparse::argtype::ArgType;
-use tokio::sync::mpsc::Sender;
-use crate::message_protocol::message::Message;
 
+use tokio::sync::mpsc::Sender;
+use tokio::runtime::Runtime;
+
+use crate::argparse::argtype::ArgType;
+use crate::broker::broker::Broker;
+use crate::broker::queues::Queues;
+use crate::config::config::CeleryConfig;
+use crate::message_protocol::message::Message;
+use crate::router::router::Router;
 
 pub struct KafkaBroker{
     config: CeleryConfig,
