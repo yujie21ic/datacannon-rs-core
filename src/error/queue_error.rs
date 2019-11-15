@@ -1,8 +1,8 @@
-/*
-Error for use when queue functions fail
-
-Author Andrew Evans
-*/
+//! Queue related errors
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::fmt;
 

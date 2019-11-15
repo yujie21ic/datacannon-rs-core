@@ -6,10 +6,10 @@ Author Andrew Evans
 
 
 use amiquip::Queue;
-use crate::protocol_configs::amqp::AMQPConnectionInf;
-use crate::queues::queue_trait::QueueHandler;
-use crate::broker::queues::QueueOptions;
+use crate::message_structure::queue_trait::QueueHandler;
 use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
+use crate::connection::amqp::connection_inf::AMQPConnectionInf;
+use crate::message_structure::queues::QueueOptions;
 
 
 /// AMQP Queue

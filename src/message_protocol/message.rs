@@ -20,6 +20,7 @@ pub struct Message{
     pub body: MessageBody,
     pub args: Option<Args>,
     pub kwargs: Option<KwArgs>,
+    pub token: Option<String>,
 }
 
 
@@ -67,6 +68,7 @@ impl Message{
             body: body,
             args: args,
             kwargs: kwargs,
+            token: None,
         }
     }
 }
@@ -78,13 +80,14 @@ mod tests{
     use amq_protocol::types::AMQPType;
     use serde_json::{from_str, Value};
 
-    use crate::argparse::args::{Arg, Args};
+    use crate::argparse::args::Args;
     use crate::argparse::kwargs::KwArg;
     use crate::message_protocol::headers::Headers;
     use crate::message_protocol::message_body::MessageBody;
     use crate::message_protocol::properties::Properties;
 
     use super::*;
+    use crate::argparse::argtype::ArgType;
 
     #[test]
     fn create_new_message(){
@@ -94,7 +97,7 @@ mod tests{
         let props = Properties::new(correlation_id, content_type, content_encoding, None);
         let mut h = Headers::new(String::from("rs"), String::from("test_task"), String::from("id"), String::from("test_root"));
         let arep = Args{
-            args: Vec::<Arg>::new(),
+            args: Vec::<ArgType>::new(),
         };
         h.argsrepr = Some(arep);
         let mb = MessageBody::new(Some(String::from("chord")), None, None, None);
@@ -102,9 +105,7 @@ mod tests{
         let ch = cjm.get("chord");
         let cv = ch.unwrap().to_owned();
         let test_string = String::from("test");
-        let test_val = Value::from(test_string);
-        let arg = Arg::new(test_val.clone(), AMQPType::LongString);
-        assert!(arg.arg.as_str().unwrap().eq("test"));
+        let arg = ArgType::String(test_string);
         let mut args = Args::new();
         args.args.push(arg);
         let kwargs: Option<KwArg> = None;
@@ -119,7 +120,7 @@ mod tests{
         let props = Properties::new(correlation_id, content_type, content_encoding, None);
         let mut h = Headers::new(String::from("rs"), String::from("test_task"), String::from("id"), String::from("test_root"));
         let arep = Args{
-            args: Vec::<Arg>::new(),
+            args: Vec::<ArgType>::new(),
         };
         h.argsrepr = Some(arep);
         let mb = MessageBody::new(Some(String::from("chord")), None, None, None);
@@ -127,9 +128,7 @@ mod tests{
         let ch = cjm.get("chord");
         let cv = ch.unwrap().to_owned();
         let test_string = String::from("test");
-        let test_val = Value::from(test_string);
-        let arg = Arg::new(test_val.clone(), AMQPType::LongString);
-        assert!(arg.arg.as_str().unwrap().eq("test"));
+        let arg = ArgType::String(test_string);
         let mut args = Args::new();
         args.args.push(arg);
         let kwargs: Option<KwArg> = None;

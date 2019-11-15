@@ -1,5 +1,5 @@
-/*
-Connection utilities to kafka
-
-Author Andrew Evans
-*/
+//! Kafka connection utils
+//!
+//! ---
+//! author: Andrew Evans
+//! ---

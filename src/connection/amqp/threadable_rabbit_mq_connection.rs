@@ -1,15 +1,17 @@
-/*
-Threadable rabbit mq connection
-
-Author Andrew Evans
-*/
+//! Threadable rabbit mq connection
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 
 use amiquip::Connection;
-use crate::protocol_configs::amqp::AMQPConnectionInf;
+
+use crate::connection::amqp::connection_inf::AMQPConnectionInf;
+use crate::error::connection_failed::ConnectionFailed;
 
 
-/// struct storage
+/// A threadable rabbitmq connection
 pub struct ThreadableRabbitMQConnection{
     pub connection: Connection,
 }
@@ -18,8 +20,12 @@ pub struct ThreadableRabbitMQConnection{
 /// Implementation of the connection
 impl ThreadableRabbitMQConnection {
 
-    /// Create a new connection
-    pub fn new(url: String, conn_inf: &AMQPConnectionInf) -> Result<ThreadableRabbitMQConnection, &'static str> {
+    /// Create a new connection or return a connection failed error
+    ///
+    /// # Arguments
+    /// * `url` - The connection url
+    /// * `conn_inf` - A reference to the `crate::connection::amqp::connection_inf::AMQPConnectionInf`
+    pub fn new(url: String, conn_inf: &AMQPConnectionInf) -> Result<ThreadableRabbitMQConnection, ConnectionFailed> {
         let conn_result = Connection::insecure_open(url.as_str());
         if (conn_result.is_ok()) {
             let mut conn = conn_result.unwrap();
@@ -37,7 +43,7 @@ impl ThreadableRabbitMQConnection {
                     }
                     _ => {}
                 }
-                Err("Failed to Establish a Channel")
+                Err(ConnectionFailed)
             }
         } else {
             match conn_result {
@@ -46,7 +52,7 @@ impl ThreadableRabbitMQConnection {
                 }
                 _ => {}
             }
-            Err("Failed to Establish a Connection")
+            Err(ConnectionFailed)
         }
     }
 }

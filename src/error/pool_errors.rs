@@ -1,28 +1,27 @@
-//! Error related to publishing to the queue
+//! Errors for connection pools
 //!
 //! ---
-//! author: Andrew Evans
+//! author: Andrew Eavns
 //! ---
 
 use std::fmt;
 
-
 /// Thrown when the connection pool is empty
-pub struct PublishError;
+pub struct PoolIsEmptyError;
 
 
 /// Display implementation for when the pool is empty
-impl fmt::Display for PublishError{
+impl fmt::Display for PoolIsEmptyError{
 
     ///Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Failed to Publish on Channel")
+        write!(f, "Connection Pool was Empty")
     }
 }
 
 
 /// Debut for PoolIsEmptyError
-impl fmt::Debug for PublishError{
+impl fmt::Debug for PoolIsEmptyError{
 
     /// Display the debug information for the programmer
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

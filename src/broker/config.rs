@@ -5,9 +5,9 @@ Author Andrew Evans
 */
 
 use crate::connection::pool::Pool;
-use crate::broker::queues::Queues;
 use crate::router::router::Router;
 use std::collections::HashMap;
+use crate::message_structure::queues::Queues;
 
 
 /// Broker configuration

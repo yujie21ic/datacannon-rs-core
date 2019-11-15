@@ -1,18 +1,20 @@
+use std::borrow::{Borrow, BorrowMut};
+use std::fs;
+use std::net::SocketAddr;
+use std::ops::Deref;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
+
 /// Handles a connection to rabbit mq.
 /// Author: Andrew Evans
-use amiquip::{Channel, Connection, Exchange, Publish, Result, ConnectionOptions, ConnectionTuning, Auth};
-use native_tls::{TlsConnector, Certificate};
-use std::fs;
-use std::sync::{Arc, Mutex};
-use std::borrow::{Borrow, BorrowMut};
-use std::ops::Deref;
-use crate::protocol_configs::amqp::AMQPConnectionInf;
+use amiquip::{Auth, Channel, Connection, ConnectionOptions, ConnectionTuning, Exchange, Publish, Result};
 use mio::net::TcpStream;
-use std::net::SocketAddr;
-use std::str::FromStr;
+use native_tls::{Certificate, TlsConnector};
 
+use crate::connection::amqp::connection_inf::AMQPConnectionInf;
+use crate::error::connection_failed::ConnectionFailed;
 
-/// Connection object
+/// Connection object containing a connection and a channel
 pub struct RabbitMQConnection{
     pub connection: Connection,
     pub channel: Channel,
@@ -22,7 +24,10 @@ pub struct RabbitMQConnection{
 /// Implementation
 impl RabbitMQConnection {
 
-    /// get the pem bytes
+    /// Get the pem bytes `std::option::Option<std::string::String>`
+    ///
+    /// # Arguments
+    /// * `cert_file` - Certification file `std::string::String`
     fn get_fbytes(cert_file: &String) -> Option<String>{
         let contents = fs::read_to_string(cert_file);
         if contents.is_ok(){
@@ -33,7 +38,11 @@ impl RabbitMQConnection {
         }
     }
 
-    /// get the certificate
+    /// Obtain a `native_tls::certificate` from byte contents
+    ///
+    /// # Argument
+    /// * `is_pem` - Whether ot use PEM format
+    /// * `cbytes` - Byte `std::string::String` containing the file
     fn get_certificate(is_pem: &bool, cbytes: String) -> Certificate{
         if is_pem.clone() {
             Certificate::from_pem(cbytes.as_bytes()).unwrap()
@@ -42,7 +51,10 @@ impl RabbitMQConnection {
         }
     }
 
-    /// get the tls connector
+    /// Get the `native_tls::TlsConnectior` from AMQP connection information
+    ///
+    /// # Arguments
+    /// * `conn_inf` - Connection information stored in a `crate::connection::amqp::connection_inf::AMQPConnectionInf` structure
     fn get_tls_connector(conn_inf: &AMQPConnectionInf) -> TlsConnector{
         let mut b = TlsConnector::builder();
         let ssl_conf_opt = conn_inf.get_ssl_config();
@@ -60,7 +72,11 @@ impl RabbitMQConnection {
         b.build().unwrap()
     }
 
-    /// get the connection
+    /// Get a `amiquip::Connection` to RabbitMQ or return an error
+    ///
+    /// # Arguments
+    /// * `url` - Reference to a url `std::string::String`
+    /// * `conn_inf` - Reference to the relevant `crate::connection::amqp::connection_inf::AMQPConnectionInf`
     fn get_connection(url: &String, conn_inf: &AMQPConnectionInf) -> Result<Connection>{
         let conn_result = Connection::insecure_open(url.as_str());
         if conn_inf.is_ssl() {
@@ -78,7 +94,7 @@ impl RabbitMQConnection {
     }
 
     /// Create the new connection
-    pub fn new(url: String, conn_inf: &AMQPConnectionInf) -> Result<RabbitMQConnection, &'static str> {
+    pub fn new(url: String, conn_inf: &AMQPConnectionInf) -> Result<RabbitMQConnection, ConnectionFailed> {
         let conn_result = RabbitMQConnection::get_connection(&url, conn_inf);
         if(conn_result.is_ok()){
             let mut conn = conn_result.unwrap();
@@ -97,7 +113,7 @@ impl RabbitMQConnection {
                     }
                     _ => {}
                 }
-                Err("Failed to Establish a Channel")
+                Err(ConnectionFailed)
             }
         }else {
             match conn_result{
@@ -106,7 +122,7 @@ impl RabbitMQConnection {
                 }
                 _ => {}
             }
-            Err("Failed to Establish a Connection")
+            Err(ConnectionFailed)
         }
     }
 }

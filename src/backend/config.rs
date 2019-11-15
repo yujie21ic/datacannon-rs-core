@@ -1,17 +1,17 @@
-/*
-Configuration for backends
+//! Configuration for backends
+//!
+//! ---
+//! author: Andrew Evans
+//!
 
-Author Andrew Evans
-*/
-
-use crate::backend::rpc::rpc::RPCHandler;
+use crate::backend::rabbiitmq::handler::RabbitMQBackendHandler;
 use crate::backend::redis::redis::RedisHandler;
 
 
 /// Supported backend types with classes
 #[derive(Clone, Debug)]
 pub enum AvailableBackend{
-    RPCBackend(RPCHandler),
+    RabbitMQBackend(RabbitMQBackendHandler),
     RedisBackend(RedisHandler),
     Void,
 }
@@ -50,7 +50,7 @@ mod tests{
             AvailableBackend::RedisBackend(be) =>{
                 assert_eq!(be.max_connections, 2);
             }
-            AvailableBackend::RPCBackend(be) =>{
+            AvailableBackend::RabbitMQBackend(be) =>{
                 assert!(false)
             }
             AvailableBackend::Void =>{

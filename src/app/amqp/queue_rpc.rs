@@ -1,11 +1,6 @@
-/*
-Queue related rpc
-
-Author Andrew Evans
-*/
-
-fn create_queue(){
-
-}
-
+//! Queue related rpc
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 

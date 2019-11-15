@@ -1,8 +1,8 @@
-/*
-Exchange related error
-
-Author Andrew Evans
-*/
+//!Exchange related error
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::fmt;
 
@@ -13,7 +13,7 @@ pub struct ExchangeError;
 /// Display implementation for when the pool is empty
 impl fmt::Display for ExchangeError{
 
-    ///Display the standard error message
+    /// Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Failed to Perform Operation on Exchange")
     }

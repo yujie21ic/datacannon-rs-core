@@ -1,15 +1,25 @@
-/// The configuration object
-/// Author: Andrew Evans
+//! General configuration for the framework
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
+
+use std::collections::HashMap;
 
 use amiquip::ExchangeType;
 use num_cpus;
-use std::collections::HashMap;
-use crate::protocol_configs::amqp::AMQPConnectionInf;
-use crate::backend::config::BackendConfig;
+
 use crate::argparse::argtype::ArgType;
-use crate::connection::kafka::kafka_connection::KafkaConnectionInf;
+use crate::backend::config::BackendConfig;
+use crate::connection::connection::ConnectionConfig;
+use crate::message_structure::queues::{Queues, Queue, GenericQueue};
+use crate::replication::replication::HAPolicy;
 
-
+/// Queue persistance type
+///
+/// # Arguments
+/// * `PERSISTENT` - When possible, queue will persist
+/// * `NONPERSISTENT` - When possible, queue will drop
 #[derive(Clone, Debug)]
 pub enum QueuePersistenceType{
     PERSISTENT,
@@ -17,19 +27,37 @@ pub enum QueuePersistenceType{
 }
 
 
+/// Backend types available
+///
+/// # Arguments
+/// * `RABBITMQ` - Ues RabbitMQ
+/// * `REDIS` - Uses Redis
+/// * `KAFKA` - Uses Kafka
 #[derive(Clone, Debug)]
 pub enum BackendType{
-    RPC,
-    REDIS
+    RABBITMQ,
+    REDIS,
+    KAFKA,
 }
 
 
+/// Broker type
+///
+/// # Arguments
+/// * `RABBITMQ` - Use RabbitMQ
+/// * `KAFKA` - Uses Kafka
 #[derive(Clone, Debug)]
 pub enum BrokerType{
     RABBITMQ,
+    KAFKA,
 }
 
 
+/// Admin information
+///
+/// # Arguments
+/// * `name` - Administrator name
+/// * `email` - Administrator email
 #[derive(Clone, Debug)]
 pub struct Admin{
     name: String,
@@ -37,24 +65,67 @@ pub struct Admin{
 }
 
 
+/// Configuration for the application with all public variables
+///
+/// # Arguments
+/// * `connection_inf` - The relevant `crate::connection::connection::ConnectionConfig`
+/// * `broker_connection_retry` - Whether to retry a connection
+/// * `result_backend` - The relevant `crate::backend::config::BackendConfig`
+/// * `cannon_cache_backend` - Backend for caching
+/// * `send_events` - Whether to send events
+/// * `queues` - Queues for the backend
+/// * `default_exchange_type` - Default exchange name
+/// * `default_queue` - Default queue when message queue not provided
+/// * `event_queue`- Event queue from specified queues
+/// * `event_exchange` - Exchange for events
+/// * `event_exchange_type` - Type of event exchange
+/// * `event_routing_key` - Default routing key for events
+/// * `result_exchange` - Default result exchange or topic
+/// * `accept_content` - Type of content to accept
+/// * `worker_prefetch_multiplier` - Number of messages to prefetch on a single consumer
+/// * `default_deilvery_mod` - Persistence type for delivery
+/// * `default_routing_key` - Default message routing key
+/// * `broker_connection_timeout` - Timeout for a broker connection
+/// * `broker_connection_max_retries` - Maximum number of times to attempt to retry a connection
+/// * `cannon_send_task_error_emails` - Whether to email on error
+/// * `admins` - A vector of Admins
+/// * `server_email` - Sender email address
+/// * `mail_host` - Server to send mail from
+/// * `mail_host_user` - Username on the mail server
+/// * `mail_host_password` - Password for the mail server
+/// * `mail_port` - Port to send mail from
+/// * `track_started` - Send a notification on the events queue/topic that processing started
+/// * `acks_late` - Whether to acknowledge after executing a task
+/// * `store_errors_even_if_ignored` - Whether to store errors if ignored
+/// * `task_result_expires` - Expiration date for the task result
+/// * `ignore_result` - Do not send result on backend even if provided
+/// * `max_cached_results` - Maximum number of cached results
+/// * `result_persistent` - Persistence type for backend if allowed
+/// * `result_serializer` - The result serialization type
+/// * `database_engine_options` - If storing results in a database, these options are for the engine
+/// * `default_rate_limit` - Maximum rate of generating tasks in tasks per second
+/// * `disable_rate_limits` - Whether to ignore all rate limits which is the default
+/// * `num_connections` - Maximum number of open broker and backend connections to allow
+/// * `ha_policy` - High availability polcies for rabbitmq or kafka
+/// * `create_missing_queues` - Tell the system to create missing queues which it does by default
+/// * `worker_direct` - Create a queue for each worker
+/// * `broker_login_method` - Default login method such as basic or oauth where possible
+/// * `task_queue_max_priority` - max priority for rabbitmq
+/// * `task_default_priority` - default priority for rabbitmq
 #[derive(Clone, Debug)]
-pub struct CeleryConfig{
-    pub connection_inf: AMQPConnectionInf,
-    pub kafka_inf: KafkaConnectionInf,
+pub struct CannonConfig{
+    pub connection_inf: ConnectionConfig,
     pub broker_connection_retry: bool,
     pub result_backend: BackendConfig,
-    pub celery_cache_backend: Option<String>,
+    pub cannon_cache_backend: Option<BackendConfig>,
     pub send_events: bool,
-    pub queues: Vec<String>,
+    pub queues: Queues,
     pub default_exchange_type: ExchangeType,
     pub default_queue: String,
-    pub broadcast_exchange: String,
-    pub broadcast_exchange_type: ExchangeType,
     pub event_queue: String,
     pub event_exchange: String,
     pub event_exchange_type: ExchangeType,
     pub event_routing_key: String,
-    pub event_serializer: String,
     pub result_exchange: String,
     pub accept_content: String,
     pub worker_prefetch_multiplier: i8,
@@ -62,18 +133,13 @@ pub struct CeleryConfig{
     pub default_routing_key: String,
     pub broker_connection_timeout: i64,
     pub broker_connection_max_retries: i64,
-    pub broadcast_queue: String,
-    pub backend_type: BackendType,
-    pub broker_type: BrokerType,
-    pub celery_send_task_error_emails: bool,
+    pub cannon_send_task_error_emails: bool,
     pub admins: Vec<Admin>,
     pub server_email: String,
     pub mail_host: String,
     pub mail_host_user: Option<String>,
     pub mail_host_password: Option<String>,
     pub mail_port: i8,
-    pub always_eager: bool,
-    pub eager_propogates_exceptions: bool,
     pub track_started: bool,
     pub acks_late: bool,
     pub store_errors_even_if_ignored: bool,
@@ -83,16 +149,10 @@ pub struct CeleryConfig{
     pub result_persistent: QueuePersistenceType,
     pub result_serializer: String,
     pub database_engine_options: Option<HashMap<String, String>>,
-    pub default_rate_limit: i8,
+    pub default_rate_limit: Option<i8>,
     pub disable_rate_limits: bool,
-    pub celerybeat_log_level: String,
-    pub celerybeat_log_file: Option<String>,
-    pub celerybeat_schedule_file_name: String,
-    pub celerybeat_max_loop_interval: i64,
-    pub celerymon_log_level: String,
-    pub celerymon_log_file: Option<String>,
     pub num_connections: usize,
-    pub ha_policy: String,
+    pub ha_policy: Option<HAPolicy>,
     pub create_missing_queues: bool,
     pub worker_direct: bool,
     pub broker_login_method: String,
@@ -101,26 +161,37 @@ pub struct CeleryConfig{
     pub task_default_priority: i8,
 }
 
-impl CeleryConfig{
 
-    pub fn new(broker_inf: AMQPConnectionInf, backend: BackendConfig, kafka_inf: KafkaConnectionInf) -> CeleryConfig{
-        CeleryConfig{
-            connection_inf: broker_inf,
-            kafka_inf: kafka_inf,
+/// Implementation of Celery configuration
+impl CannonConfig{
+
+    /// Create a new configuration
+    ///
+    /// # Arguments
+    /// * `conn_inf` - A `crate::connection::connection::ConnectionConfig` holding an appropriate connection config
+    /// * `backend` - A `crate::backend::config::BackendConfig`
+    pub fn new(conn_inf: ConnectionConfig, backend: BackendConfig) -> CannonConfig{
+        let qs = Queues::new(
+            Vec::<GenericQueue>::new(),
+            "celery".to_string(),
+            None,
+            None,
+            None,
+            None,
+            None);
+        CannonConfig{
+            connection_inf: conn_inf,
             broker_connection_retry: true,
             result_backend: backend,
-            celery_cache_backend: None,
+            cannon_cache_backend: None,
             send_events: false,
-            queues: Vec::<String>::new(),
+            queues: qs,
             default_exchange_type: ExchangeType::Direct,
             default_queue: String::from("celery"),
-            broadcast_exchange: String::from("celeryctl"),
-            broadcast_exchange_type: ExchangeType::Fanout,
             event_queue: String::from("celeryevent"),
             event_exchange: String::from("celery_event"),
             event_exchange_type: ExchangeType::Topic,
             event_routing_key: String::from("celeryevent"),
-            event_serializer: String::from("json"),
             result_exchange: String::from("celeryresult"),
             accept_content: String::from("application/json"),
             worker_prefetch_multiplier: 4,
@@ -128,18 +199,13 @@ impl CeleryConfig{
             default_routing_key: String::from("celery"),
             broker_connection_timeout: 10000,
             broker_connection_max_retries: 1000,
-            broadcast_queue: String::from("celeryctl"),
-            backend_type: BackendType::RPC,
-            broker_type: BrokerType::RABBITMQ,
-            celery_send_task_error_emails: false,
+            cannon_send_task_error_emails: false,
             admins: Vec::<Admin>::new(),
             server_email: String::from("celery@localhost"),
             mail_host: String::from("localhost"),
             mail_host_user: None,
             mail_host_password: None,
             mail_port: 25,
-            always_eager: false,
-            eager_propogates_exceptions: true,
             track_started: false,
             acks_late: true,
             store_errors_even_if_ignored: false,
@@ -149,16 +215,10 @@ impl CeleryConfig{
             result_persistent: QueuePersistenceType::NONPERSISTENT,
             result_serializer: String::from("json"),
             database_engine_options: None,
-            default_rate_limit: -1,
+            default_rate_limit: None,
             disable_rate_limits: true,
-            celerybeat_log_level: String::from("INFO"),
-            celerybeat_log_file: None,
-            celerybeat_schedule_file_name: String::from("celerybeat-schedule"),
-            celerybeat_max_loop_interval: 300000,
-            celerymon_log_level: String::from("INFO"),
-            celerymon_log_file: None,
             num_connections: num_cpus::get(),
-            ha_policy: "all".to_string(),
+            ha_policy: None,
             create_missing_queues: true,
             worker_direct: true,
             broker_login_method: "AMQPLAIN".to_string(),
@@ -172,6 +232,9 @@ impl CeleryConfig{
 
 #[cfg(test)]
 mod tests {
+    use crate::connection::amqp::connection_inf::AMQPConnectionInf;
+    use crate::connection::kafka::connection_inf::KafkaConnectionInf;
+
     use super::*;
 
     #[test]
@@ -198,8 +261,11 @@ mod tests {
             num_acks: 0,
             host: "".to_string(),
             port: "".to_string()};
-        let c = CeleryConfig::new(broker_conf, b, kinf);
-        let url = c.connection_inf.to_url();
-        assert!(url.eq("amqp://dev:rtp*4500@127.0.0.1:5672/test"))
+        let c = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conf), b);
+        let conn_inf = c.connection_inf;
+        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
+            let url = conn_inf.to_url();
+            assert!(url.eq("amqp://dev:rtp*4500@127.0.0.1:5672/test"))
+        }
     }
 }

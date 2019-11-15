@@ -1,13 +1,19 @@
-/*
-Message body for the broker
-
-Author Andrew Evans
-*/
+//! Message body for the broker
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use serde_json::{Map, Value};
 
 
 /// Message body structure
+///
+/// # Arguments
+/// * `chord` - Chord containing tasks to be executed at once in the same message
+/// * `chain` - Chain of tasks to implement serially
+/// * `callbacks` - Callback methods once completed
+/// * `errbacks` - ErrHandlers for messages responding with error
 #[derive(Clone, Debug)]
 pub struct MessageBody{
     pub chord: Option<String>,
@@ -17,10 +23,10 @@ pub struct MessageBody{
 }
 
 
-/// implementation of message body
+/// Implementation of MessageBody
 impl MessageBody{
 
-    /// covnert to a json map
+    /// Convert MessageBody to network ready `serde_json::Map<std::string::String, serde_json::Value>`
     pub fn convert_to_json_map(&self) -> Map<String, Value>{
         let mut m = Map::new();
         if self.chord.is_some() {
@@ -46,7 +52,11 @@ impl MessageBody{
         m
     }
 
-    /// create a new message body
+    /// Create a new message body
+    /// * `chord` - Chord containing tasks to be executed at once in the same message
+    /// * `chain` - Chain of tasks to implement serially
+    /// * `callbacks` - Callback methods once completed
+    /// * `errbacks` - ErrHandlers for messages responding with error
     pub fn new(chord: Option<String>, chain: Option<String>, callbacks: Option<Vec<String>>, errbacks: Option<Vec<String>>) -> MessageBody{
         MessageBody{
             chord: chord,

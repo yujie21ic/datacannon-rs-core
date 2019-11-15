@@ -1,22 +1,29 @@
-/*
-Connection Pool for RabbitMQ connection pooling. Requires the threadable struct
-since you cannot share utilities
-
-author Andrew Evans
-*/
+//! Connection Pool for RabbitMQ connection pooling. Requires the threadable struct since you cannot share utilities
+//!
+//! ---
+//! author:  Andrew Evans
+//! ---
 
 use std::borrow::{Borrow, BorrowMut};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, RwLock};
 use std::vec::Vec;
 
-use crate::connection::pool_errors::PoolIsEmptyError;
+use crate::connection::amqp::connection_inf::AMQPConnectionInf;
 use crate::connection::amqp::rabbitmq_connection_factory::{Credential, RabbitMQConnectionFactory};
 use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
-use crate::protocol_configs::amqp::AMQPConnectionInf;
+use crate::error::pool_errors::PoolIsEmptyError;
+use crate::error::connection_failed::ConnectionFailed;
 
 
 /// Structure storing the pool
+///
+/// # Arguments
+/// * `initial_size`- The initial size of the connection pool
+/// * `current_size` - Current size of the connection pool
+/// * `conn_inf` - relevant connection information
+/// * `conn_factory` - The `crate::connection::amqp::rabbitmq_connection_factory::RabbitMQConnectionFactory`
+/// * `active_connections` - Currently active `std::vec::Vec<crate::connection::amqp::threadable_rabbitmq_connection::ThreadableRabbitMQConnection>`
 pub struct ThreadableRabbitMQConnectionPool{
     pub initial_size: usize,
     pub current_size: usize,
@@ -29,18 +36,21 @@ pub struct ThreadableRabbitMQConnectionPool{
 /// Structure implementation
 impl ThreadableRabbitMQConnectionPool{
 
-    /// Get the current pool size
+    /// Get the current pool size `std::usize`
     pub fn get_current_pool_size(&self) -> usize{
         self.current_size.clone()
     }
 
     /// Release the connection
+    ///
+    /// # Arguments
+    /// * `conn` - The relevant `crate::connection::amqp::threadable_rabbitmq_connection::ThreadableRabbitMQConnection`
     fn release_connection(&mut self, conn: ThreadableRabbitMQConnection){
         self.active_connections.push(conn);
         self.current_size += 1;
     }
 
-    /// Get a connection from the pool
+    /// Get a threadable connection from the pool or return a `crate::connection::pool_error::PoolIsEmptyError`
     pub fn get_connection(&mut self) -> Result<ThreadableRabbitMQConnection, PoolIsEmptyError>{
         if self.active_connections.is_empty(){
             Err(PoolIsEmptyError)
@@ -51,8 +61,8 @@ impl ThreadableRabbitMQConnectionPool{
         }
     }
 
-    /// Create a connection for the pool
-    pub fn create_connection(&mut self) -> Result<ThreadableRabbitMQConnection, &'static str>{
+    /// Create a connection for the pool. Obtain a threadable connection or return an Error
+    pub fn create_connection(&mut self) -> Result<ThreadableRabbitMQConnection, ConnectionFailed>{
         self.conn_factory.create_threadable_connection()
     }
 
@@ -84,7 +94,7 @@ impl ThreadableRabbitMQConnectionPool{
     }
 
     /// Create a new connection pool
-    pub fn new(conn_inf: AMQPConnectionInf, min_connections: usize) -> ThreadableRabbitMQConnectionPool{
+    pub fn new(conn_inf: &mut AMQPConnectionInf, min_connections: usize) -> ThreadableRabbitMQConnectionPool{
         let factory = RabbitMQConnectionFactory::new(conn_inf.clone());
         let active_connections: Vec<ThreadableRabbitMQConnection> = Vec::<ThreadableRabbitMQConnection>::new();
         ThreadableRabbitMQConnectionPool{
@@ -104,7 +114,7 @@ mod tests{
     use std::sync::{LockResult, Mutex, PoisonError};
     use std::thread;
 
-    use amiquip::{ExchangeDeclareOptions, ExchangeType, FieldTable, QueueDeclareOptions, QueueDeleteOptions, Result, Publish};
+    use amiquip::{ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, QueueDeclareOptions, QueueDeleteOptions, Result};
 
     use super::*;
 
@@ -125,7 +135,7 @@ mod tests{
     #[test]
     fn should_start_and_close_pool(){
         let conn_inf = get_amqp_conn_inf();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 3);
+        let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 3);
         println!("Starting pool");
         pool.start();
         assert!(pool.current_size == 3);
@@ -137,7 +147,7 @@ mod tests{
     #[test]
     fn should_add_more_connections(){
         let conn_inf = get_amqp_conn_inf();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 3);
+        let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 3);
         pool.start();
         assert!(pool.current_size == 3);
         assert!(pool.active_connections.len() == 3);
@@ -150,7 +160,7 @@ mod tests{
     #[test]
     fn should_get_connection(){
         let conn_inf = get_amqp_conn_inf();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 3);
+        let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 3);
         pool.start();
         let conn = pool.get_connection().unwrap();
         conn.connection.close();
@@ -162,7 +172,7 @@ mod tests{
     #[test]
     fn should_release_connection(){
         let conn_inf = get_amqp_conn_inf();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 3);
+        let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 3);
         pool.start();
         let conn = pool.get_connection().unwrap();
         assert!(pool.current_size == 2);
@@ -176,7 +186,7 @@ mod tests{
     #[test]
     fn should_perform_function_in_a_thread() -> Result<()>{
         let conn_inf = get_amqp_conn_inf();
-        let mut pool = ThreadableRabbitMQConnectionPool::new(conn_inf, 3);
+        let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 3);
         pool.start();
         let mut conn = pool.get_connection().unwrap();
         let channel = conn.connection.open_channel(None)?;

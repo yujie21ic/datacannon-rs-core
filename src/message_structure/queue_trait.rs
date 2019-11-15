@@ -4,8 +4,7 @@ Queue trait
 Author Andrew Evans
 */
 
-
-use crate::broker::queues::QueueOptions;
+use crate::message_structure::queues::QueueOptions;
 
 
 /// Queue handler

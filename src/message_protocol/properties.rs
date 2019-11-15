@@ -1,14 +1,22 @@
-/*
-Properties for the message
-
-Author Andrew Evans
-*/
+//! Properties for the message
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use amiquip::AmqpProperties;
 use uuid::Uuid;
 
 
 /// Properties
+///
+/// # Arguments
+/// * `correlation_id` - The correlation_id
+/// * `content_type` - Acceptable content type
+/// * `content_encoding` - Content encoding defaulting to utf-8
+/// * `reply_to` - Optional queue to reply to
+/// * `priority` - Queue priority
+/// * `delivery_mode` - The delivery mode to use
 #[derive(Clone, Debug)]
 pub struct Properties{
     pub correlation_id: String,
@@ -20,9 +28,10 @@ pub struct Properties{
 }
 
 
+/// Properties implementation
 impl Properties{
 
-    /// convert to amqp properties
+    /// Convert to `crate::message_protocol::properties::AmqProperties`
     pub fn convert_to_amqp_properties(&self) -> AmqpProperties{
         let uid =  Uuid::new_v4();
         let message_id = format!("{}", uid);
@@ -41,6 +50,12 @@ impl Properties{
     }
 
     /// Create a new properties
+    /// * `correlation_id` - The correlation_id
+    /// * `content_type` - Acceptable content type
+    /// * `content_encoding` - Content encoding defaulting to utf-8
+    /// * `reply_to` - Optional queue to reply to
+    /// * `priority` - Queue priority
+    /// * `delivery_mode` - The delivery mode to use
     pub fn new(correlation_id: String, content_type: String, content_encoding: String, reply_to: Option<String>) -> Properties{
         Properties{
             correlation_id: correlation_id,

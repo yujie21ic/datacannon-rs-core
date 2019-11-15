@@ -1,6 +1,8 @@
-/*
-Get an anonymous nodename for celery
-*/
+//! Get an anonymous nodename for celery
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 
 use std::process;
@@ -8,7 +10,11 @@ use std::process;
 use hostname;
 
 
-/// get the naodename
+/// Get the nodename `std::string::String`
+///
+/// # Arguments
+/// * `host` - An option containing the hostname
+/// * `prefix` - An option containing the prefix
 pub fn get_anon_nodename(host: Option<String>, prefix: Option<String>) -> String{
     let mut hname = "".to_string();
     let mut pname = "gen".to_string();

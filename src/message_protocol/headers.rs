@@ -1,8 +1,8 @@
-/*
-Headers for the message
-
-Author Andrew Evans
-*/
+//! Message body headers
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::collections::BTreeMap;
 use std::process;
@@ -17,6 +17,10 @@ use crate::nodename::anon_name;
 
 
 /// Soft and hard time limits
+///
+/// # Arguments
+/// * `soft` - The soft time limit
+/// * `hard` - The hard time limit
 #[derive(Clone, Debug)]
 pub struct TimeLimit {
     pub soft: i64,
@@ -25,6 +29,23 @@ pub struct TimeLimit {
 
 
 /// Stored headers
+///
+/// # Arguments
+/// * `lang` - The language extension name for running code
+/// * `task` - The task name
+/// * `id` - The unique task id
+/// * `root_id` - The root id
+/// * `parent_id` - The parent id
+/// * `group` - Uuuid of the group being executed
+/// * `meth` - Method name
+/// * `shadow` - Loggin name alias
+/// * `eta` - ETA for task arrival
+/// * `expires` - When the task message expires (will not execute)
+/// * `retries` - Number of times to retry sending the message
+/// * `timelimit` - Hard and soft timelimit for the task
+/// * `argsrepr` - Argument representation
+/// * `kwargsrepr` - Mapped arguments
+/// * `origin` - Option for the origin
 #[derive(Clone, Debug)]
 pub struct Headers{
     pub lang: String,
@@ -48,7 +69,7 @@ pub struct Headers{
 /// Headers implementation
 impl Headers{
 
-    /// convert headers to a btree map
+    /// Convert headers to a `std::collections::BTreeMap<std::string::String, amiquip::AmqpValue>`
     pub fn convert_to_btree_map(&self) -> BTreeMap<String, AmqpValue>{
         let mut jmap = BTreeMap::<String, AmqpValue>::new();
         jmap.insert(String::from("lang"), AmqpValue::LongString(self.lang.clone()));
@@ -148,7 +169,8 @@ impl Headers{
         jmap
     }
 
-    /// convert to a json capable map
+    /// Convert to a json capable map
+    ///
     pub fn convert_to_json_map(&self) -> Map<String, Value>{
         let mut jmap = Map::new();
         jmap.insert(String::from("lang"), Value::String(self.lang.clone()));
@@ -244,14 +266,15 @@ impl Headers{
 mod tests{
     use std::vec::Vec;
 
-    use crate::argparse::args::{Arg, Args};
+    use crate::argparse::args::{Args};
     use crate::message_protocol::headers::Headers;
+    use crate::argparse::argtype::ArgType;
 
     #[test]
     fn should_convert_to_json_map(){
         let mut h = Headers::new(String::from("rs"), String::from("test_task"), String::from("id"), String::from("test_root"));
         let arep = Args{
-            args: Vec::<Arg>::new(),
+            args: Vec::<ArgType>::new(),
         };
         h.argsrepr = Some(arep);
         let m = h.convert_to_json_map();
@@ -263,7 +286,7 @@ mod tests{
     fn should_create_new_headers(){
         let mut h = Headers::new(String::from("rs"), String::from("test_task"), String::from("id"), String::from("test_root"));
         let arep = Args{
-          args: Vec::<Arg>::new(),
+          args: Vec::<ArgType>::new(),
         };
         h.argsrepr = Some(arep);
         let lang = h.lang;

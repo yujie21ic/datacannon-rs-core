@@ -1,27 +1,27 @@
-/*
-Errors for the connection pool
-
-Author Andrew Evans
-*/
+//!Exchange related error
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::fmt;
 
-/// Thrown when the connection pool is empty
-pub struct PoolIsEmptyError;
 
+/// Thrown when the connection pool is empty
+pub struct BackendTypeError;
 
 /// Display implementation for when the pool is empty
-impl fmt::Display for PoolIsEmptyError{
+impl fmt::Display for BackendTypeError{
 
-    ///Display the standard error message
+    /// Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Connection Pool was Empty")
+        write!(f, "Wrong Broker Type")
     }
 }
 
 
 /// Debut for PoolIsEmptyError
-impl fmt::Debug for PoolIsEmptyError{
+impl fmt::Debug for BackendTypeError{
 
     /// Display the debug information for the programmer
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

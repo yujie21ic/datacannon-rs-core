@@ -4,15 +4,16 @@ RPC backend handler
 Author Andrew Evans
 */
 
-use crate::protocol_configs::amqp::AMQPConnectionInf;
+
 use crate::security::ssl::SSLConfig;
 use crate::security::uaa::UAAConfig;
 use crate::backend::backend_trait::Backend;
+use crate::connection::amqp::connection_inf::AMQPConnectionInf;
 
 
 /// The RPC handler
 #[derive(Clone, Debug)]
-pub struct RPCHandler{
+pub struct RabbitMQBackendHandler{
     conn_inf: AMQPConnectionInf,
     exchange: Option<String>,
     exchange_type: Option<String>,
@@ -25,7 +26,7 @@ pub struct RPCHandler{
 
 
 /// trait implementation
-impl Backend for RPCHandler {
+impl Backend for RabbitMQBackendHandler {
 
     /// get the result blocking as necessary
     fn get(&self){
@@ -40,7 +41,7 @@ impl Backend for RPCHandler {
 
 
 /// contains the constructor and unique functions
-impl RPCHandler{
+impl RabbitMQBackendHandler{
 
     fn do_send(&self){
 
@@ -80,8 +81,8 @@ impl RPCHandler{
         serializer: Option<String>,
         auto_delete: bool,
         ssl_config: Option<SSLConfig>,
-        uaa_config: Option<UAAConfig>) -> RPCHandler{
-        RPCHandler{
+        uaa_config: Option<UAAConfig>) -> RabbitMQBackendHandler{
+        RabbitMQBackendHandler{
             conn_inf: conn_inf,
             exchange: exchange,
             exchange_type: exchange_type,

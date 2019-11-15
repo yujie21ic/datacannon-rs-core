@@ -1,6 +1,8 @@
-/*
-Utilities for handling values
-*/
+//! Utilities for handling values
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::collections::BTreeMap;
 
@@ -8,6 +10,10 @@ use amiquip::AmqpValue;
 use serde_json::Value;
 
 
+/// Convert an `serde_json::Value` to an `amiquip::AmqpValue`
+///
+/// # Arguments
+/// * `val` - The `serde_json::Value`
 pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
     if val.is_array(){
         let arr = val.clone().as_array().unwrap().to_owned();

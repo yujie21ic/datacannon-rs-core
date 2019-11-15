@@ -14,13 +14,13 @@ use tokio::runtime::Runtime;
 
 use crate::argparse::argtype::ArgType;
 use crate::broker::broker::Broker;
-use crate::broker::queues::Queues;
-use crate::config::config::CeleryConfig;
+use crate::config::config::CannonConfig;
 use crate::message_protocol::message::Message;
 use crate::router::router::Router;
+use crate::message_structure::queues::Queues;
 
 pub struct KafkaBroker{
-    config: CeleryConfig,
+    config: CannonConfig,
     routers: Option<HashMap<String, Router>>,
     queues: Option<Queues>,
     topics: Option<HashMap<String, Router>>,

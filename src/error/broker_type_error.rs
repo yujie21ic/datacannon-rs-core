@@ -1,4 +1,4 @@
-//! Error related to publishing to the queue
+//!Exchange related error
 //!
 //! ---
 //! author: Andrew Evans
@@ -8,21 +8,20 @@ use std::fmt;
 
 
 /// Thrown when the connection pool is empty
-pub struct PublishError;
-
+pub struct BrokerTypeError;
 
 /// Display implementation for when the pool is empty
-impl fmt::Display for PublishError{
+impl fmt::Display for BrokerTypeError{
 
-    ///Display the standard error message
+    /// Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Failed to Publish on Channel")
+        write!(f, "Wrong Broker Type")
     }
 }
 
 
 /// Debut for PoolIsEmptyError
-impl fmt::Debug for PublishError{
+impl fmt::Debug for BrokerTypeError{
 
     /// Display the debug information for the programmer
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

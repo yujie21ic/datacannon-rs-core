@@ -1,8 +1,8 @@
-/*
-Parser given arguments into a json string
-
-Author Andrew Evans
-*/
+//! Arguments for RPC in the framework
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::vec::Vec;
 
@@ -12,73 +12,62 @@ use amq_protocol::uri::AMQPScheme::AMQP;
 use serde_json::Value;
 
 use crate::serde_utils::val_handler::value_to_amqp_value;
+use crate::argparse::argtype::{ArgType, arg_to_amqp_value, arg_to_value};
 
 
 /// Structure storing the arguments
+///
+/// # Arguments
+/// * `args` - A list of arguments
 #[derive(Clone, Debug)]
 pub struct Args{
-    pub args: Vec<Arg>,
-}
-
-
-/// Struct storing a single argument
-#[derive(Clone, Debug)]
-pub struct Arg{
-    pub arg: Value,
-    pub arg_type: AMQPType,
-}
-
-
-/// Argument implementation
-impl Arg{
-
-    /// Create a new argument
-    pub fn new(arg: Value, arg_type: AMQPType) -> Arg{
-        Arg{
-            arg: arg,
-            arg_type: arg_type
-        }
-    }
+    pub args: Vec<ArgType>,
 }
 
 
 /// Implementation of arguments list
 impl Args{
 
-    /// convert to amqp vec
+    /// Convert args to a vector of `AmqpValue`
     pub fn args_to_amqp_vec(&self) -> Vec<AmqpValue>{
         let mut val_vec = Vec::<AmqpValue>::new();
         for i in 0..self.args.len(){
             let val = self.args.get(i).unwrap().clone();
-            val_vec.push(value_to_amqp_value(&val.arg));
+            let amqval = arg_to_amqp_value(val);
+            val_vec.push(amqval);
         }
         val_vec
     }
 
-    /// convert args to a vec
+    /// Convert args to a vector of serde `Value` items
     pub fn args_to_vec(&self) -> Vec<Value>{
         let mut val_vec = Vec::<Value>::new();
         for i in 0..self.args.len(){
             let val = self.args.get(i).unwrap().clone();
-            val_vec.push(val.arg);
+            let serde_val = arg_to_value(val);
+            val_vec.push(serde_val);
         }
         val_vec
     }
 
-    /// size of the list
+    /// Return the `usize` of the args
     pub fn size(&self) -> usize{
         self.args.len()
     }
 
-    /// add an argument
-    pub fn add_arg(&mut self, arg: Arg){
+    /// Add an argument (`Arg`)
+    ///
+    /// # Arguments
+    /// * `arg` - An `Arg` representing an argument for rpc messages
+    ///
+    pub fn add_arg(&mut self, arg: ArgType){
         self.args.push(arg);
     }
 
-    /// create a new arguments list
+    /// Create a new vector of arguments, an `Args` structure
     pub fn new() -> Args{
         Args{
-           args: Vec::<Arg>::new(),
+           args: Vec::<ArgType>::new(),
         }
     }
 
@@ -93,23 +82,24 @@ mod tests{
     use super::*;
 
     #[test]
-    fn should_create_an_argument(){
-        let test_string = String::from("test");
-        let test_val = Value::from(test_string);
-        let arg = Arg::new(test_val.clone(), AMQPType::LongString);
-        assert!(arg.arg.as_str().unwrap().eq("test"));
-    }
-
-    #[test]
     fn should_create_an_argument_list(){
         let test_string = String::from("test");
         let test_val = Value::from(test_string);
-        let arg = Arg::new(test_val.clone(), AMQPType::LongString);
-        assert!(arg.arg.as_str().unwrap().eq("test"));
+        let arg = ArgType::Double(32.0);
         let mut args = Args::new();
         args.args.push(arg);
         assert!(args.size() == 1);
         assert!(args.args.len() == 1);
-        assert!(args.args.get(0).unwrap().arg.as_str().unwrap().eq("test"));
+        let at = args.args.get(0).unwrap().clone();
+        let mut p = false;
+        match at{
+            ArgType::Double(at) => {
+                p = true;
+            }
+            _ => {
+                p = false;
+            }
+        }
+        assert!(p);
     }
 }
