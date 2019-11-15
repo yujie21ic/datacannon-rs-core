@@ -6,7 +6,8 @@
 
 use regex::Regex;
 
-use crate::message_structure::queues::Queue;
+use crate::message_structure::queues::{Queue, Queues};
+use std::collections::HashMap;
 
 
 /// Router storing keys and queues
@@ -16,8 +17,10 @@ use crate::message_structure::queues::Queue;
 /// * `routing_key` - The routing key for the queue
 /// * `queue` - Queue for the router
 pub struct Router{
-    pub routing_key: String,
-    pub queue: Queue,
+    routing_key: String,
+    queues: Queues,
+    exchange: String,
+    is_regex: bool,
 }
 
 
@@ -26,19 +29,29 @@ pub struct Router{
 /// # Arguments
 /// * `routers` - A vector containing `Router` objects
 pub struct Routers{
-    pub routers: Vec<Router>,
+    routers: HashMap<String, Router>,
 }
 
 
 /// Router implementation
 impl Routers{
 
+    /// Adds a router to the map
+    pub fn add_router(&mut self, routing_key: String, router: Router){
+        let item = self.routers.get(&routing_key);
+        if item.is_none(){
+
+        }else{
+
+        }
+    }
+
     /// Filter routers to create a subset of `Vec<Router>` with exact matching
     ///
     /// # Arguments
     ///
     /// * `filter` - exact matching pattern
-    fn filter_routers(filter: String){
+    pub fn filter_routers(filter: String){
 
     }
 
@@ -46,7 +59,7 @@ impl Routers{
     ///
     /// # Arguments
     /// * `filter` - Regular expresion filter
-    fn match_routers(filter: String){
+    pub fn match_routers(filter: String){
 
 
     }

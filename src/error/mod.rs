@@ -5,3 +5,4 @@ pub mod exchange_error;
 pub mod pool_errors;
 pub mod publish_error;
 pub mod queue_error;
+pub mod queue_type_error;

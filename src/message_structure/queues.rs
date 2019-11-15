@@ -9,13 +9,21 @@ use std::collections::HashSet;
 use amiquip::ExchangeType;
 
 use crate::config::config::CannonConfig;
-use crate::message_structure::amqp::AMQPQueue;
+use crate::message_structure::amqp::queue::AMQPQueue;
+use crate::message_structure::kafka::queue::KafkaQueue;
+use crate::replication::replication::HAPolicy;
+use crate::error::queue_type_error::QueueTypeError;
 
 
 /// Stores queues for the broker
+///
+/// # Arguments
+/// * `AMQPQueue` - Wrapper for `crate::message_structure::amqp::queue::AMQPQueue`
+/// * `KafkaQueue` - Wrapper for `crate::message_structure::kafka::queue::KafkaQueue`
 #[derive(Clone, Debug)]
 pub enum GenericQueue {
     AMQPQueue(AMQPQueue),
+    KafkaQueue(KafkaQueue),
 }
 
 
@@ -53,10 +61,10 @@ pub struct Queue {
 #[derive(Clone, Debug)]
 pub struct Queues {
     queues: Vec<GenericQueue>,
-    default_exchange: String,
+    default_exchange: Option<String>,
     default_routing_key: Option<String>,
     create_missing: Option<bool>,
-    ha_policy: Option<String>,
+    ha_policy: Option<HAPolicy>,
     max_priority: Option<i8>,
     pub consume_from: Option<Vec<GenericQueue>>,
 }
@@ -80,21 +88,88 @@ pub struct QueueOptions{
 /// implementation of queues
 impl Queues{
 
-    /// add a queue
-    pub fn add(&self){
+    /// Add a queue to the list of queues
+    ///
+    /// # Arguments
+    /// * `queue` - Add a `crate:message_struct::queues::GenericQueue`
+    pub fn add(&mut self, queue: GenericQueue){
+        self.queues.push(queue);
+    }
+
+    /// Set the default exchange
+    ///
+    /// # Arguments
+    /// * `exchange_name` - The exchange name to use
+    pub fn set_default_exchange(&mut self, exchange_name: String){
+        self.default_exchange = Some(exchange_name);
+    }
+
+    /// Set default routing key
+    ///
+    /// # Arguments
+    /// * `routing_key` - The routing key to use
+    pub fn set_default_routing_key(&mut self, routing_key: String){
+        self.default_routing_key = Some(routing_key);
+    }
+
+    /// Whether to create missing queues
+    ///
+    /// # Arguments
+    /// * `create_missing` - Whether to create missing queues
+    pub fn do_create_missing(&mut self, create_missing: bool){
+        self.create_missing = Some(create_missing);
+    }
+
+    /// Set the HA Policy
+    ///
+    /// # Arguments
+    /// * `ha_policy` - The `crate::replication::replication::HAPolicy`
+    pub fn set_ha_policy(&mut self, ha_policy: Option<HAPolicy>){
+        self.ha_policy = ha_policy;
+    }
+
+    /// Se the maximum priority
+    ///
+    /// # Arguments
+    /// * `max_priority` - The maximum priority for the queue
+    pub fn set_max_priority(&mut self, max_priority: i8){
+        self.max_priority = Some(max_priority);
+    }
+
+    /// Deselect the specified queue
+    ///
+    /// # Arguments
+    /// * `qname` - Name of the queue
+    pub fn deselect_queue(&mut self, qname: String) -> Result<bool, QueueTypeError>{
+        let new_qs = Vec::<GenericQueue>::new();
+        let mut found_item = false;
+        for i in 0..self.queues.len(){
+            let q = self.queues.get(i).unwrap();
+            if let GenericQueue::KafkaQueue(q) = q {
+
+            }else if let GenericQueue::AMQPQueue(q) = q{
+
+            }else{
+                return Err(QueueTypeError)
+            }
+        }
+        Ok(found_item)
+    }
+
+    /// Deselect a queue for consumption
+    ///
+    /// # Arguments
+    /// * ``
+    pub fn deselect(&mut self, exclude: Option<HashSet<String>>){
 
     }
 
-    /// add a compatible queue
-    pub fn add_compat(&self, name: String, qopts: Option<QueueOptions>){
+    /// Get a queue
+    pub fn get_queue(&mut self, queue_name: String) -> Queues{
 
     }
 
-    /// deselect a queue for consumption
-    pub fn deselect(&self, exclude: Option<HashSet<String>>){
-
-    }
-
+    /// Create a new queue set
     pub fn new(queues: Vec<GenericQueue>,
         default_exchange: String,
         default_routing_key: Option<String>,
