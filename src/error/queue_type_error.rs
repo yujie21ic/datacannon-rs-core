@@ -21,7 +21,7 @@ impl fmt::Display for QueueTypeError{
 
 
 /// Debut for PoolIsEmptyError
-impl fmt::Debug for ConnectionFailed{
+impl fmt::Debug for QueueTypeError{
 
     /// Display the debug information for the programmer
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

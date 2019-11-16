@@ -1,8 +1,8 @@
-/*
-Implementation of available brokers in a non-asynchronous manner.
-
-Author Andrew Evans
-*/
+//! Implementation of available brokers in a non-asynchronous manner.
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 use std::any::Any;
 use std::borrow::BorrowMut;
@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::env::Args;
 use std::error::Error;
 
-use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, Queue, QueueDeclareOptions};
+use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, Queue, QueueDeclareOptions, QueueDeleteOptions};
 use serde_json::{to_string, Value};
 use serde_json::map::Values;
 use tokio;
@@ -50,7 +50,14 @@ pub struct RabbitMQBroker{
 /// AMQP Broker
 impl AMQPBroker for RabbitMQBroker{
 
-    /// create the exchange
+    /// Create the exchange
+    ///
+    /// # Arguments
+    /// * `config` - The reference to the application `crate::config::config::CannonConfig`
+    /// * `channel` - Reference to a `amiquip::Channel`
+    /// * `durabe` - Whether the exchange persists
+    /// * `exchange` - Name of the exchange
+    /// * `exchange_type` - The exchange type
     fn create_exchange(config: &CannonConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeType) -> Result<bool, ExchangeError> {
         let mut opts = ExchangeDeclareOptions::default();
         opts.durable = durable;
@@ -62,7 +69,17 @@ impl AMQPBroker for RabbitMQBroker{
         }
     }
 
-    /// create a queue
+    /// Create a queue
+    ///
+    /// # Arguments
+    /// * `config` - Reference to the application `crate::config::config::CannonConfig`
+    /// * `channel` - A reference to a `amiquip::Channel`
+    /// * `durable` - Whether the channel should persist
+    /// * `queue` - The name of the queue
+    /// * `declare_exchange` - Whether to declare the exchange
+    /// * `uuid` - Unique id for the message e
+    /// * `exchange` - Name of the exchange
+    /// * `routing_key` - Routing key for the exchange
     fn create_queue(config: &CannonConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
         let mut qopts = QueueDeclareOptions::default();
         if declare_exchange{
@@ -98,7 +115,14 @@ impl AMQPBroker for RabbitMQBroker{
         }
     }
 
-    /// bind a queue to an exchange
+    /// Bind a queue to an exchange
+    ///
+    /// # Arguments
+    /// * `config` - The application `crate::config::config::CannonConfig`
+    /// * `channel` - A `amiquip::Channel`
+    /// * `exchange` - Name of the exchange
+    /// * `queue` - Name of the queue to bind
+    /// * `routing_key` - Name of the routing key
     fn bind_to_exchange(config: &CannonConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError> {
         let args = FieldTable::new();
         let r = channel.queue_bind(queue, exchange, routing_key, args);
@@ -109,7 +133,16 @@ impl AMQPBroker for RabbitMQBroker{
         }
     }
 
-    /// send a task to the broker
+    /// Send a task to the broker
+    ///
+    /// # Arguments
+    /// * `config` - The application `crate::config::config::CannonConfig`
+    /// * `channel` - A `amiquip::Channel`
+    /// * `props` - The `amiquip::Properties` for the message
+    /// * `headers` - Relevant message `crate::message_protocol::headers::Headers`
+    /// * `body` - Relevant message `crate::message_protocol::body::MessageBody`\
+    /// * `exchange` - Name of the exchange to use
+    /// * `routing_key` - Name of the routing key
     fn do_send(config: &CannonConfig, channel: &Channel, props: Properties, headers: Headers, body: MessageBody, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, PublishError> {
         let cfg = config.clone();
         let mut amq_properties = props.convert_to_amqp_properties();
@@ -136,13 +169,29 @@ impl AMQPBroker for RabbitMQBroker{
             Err(e)
         }
     }
+
+    /// Drop the queue
+    ///
+    /// # Arguments
+    /// * `config` - Reference to the application `crate::config::config::CannonConfig`
+    /// * `channel` - Reference to an `amiquip::Channel`
+    /// * `name` - Name of the string
+    fn do_drop_queue(config: &CannonConfig, channel: &Channel, queue: String) -> Result<bool, QueueError> {
+        let qopts = QueueDeleteOptions::default();
+        let r = channel.queue_delete(queue, qopts);
+        if r.is_ok() {
+            Ok(true)
+        }else{
+            Err(QueueError)
+        }
+    }
 }
 
 
 /// Broker implementation
 impl Broker for RabbitMQBroker{
 
-    /// start the broker futures
+    /// Start the broker futures
     fn setup(&mut self, rt: tokio::runtime::Runtime){
         for i in 0..self.num_futures{
             
@@ -251,11 +300,6 @@ mod tests {
         };
         let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend);
         conf
-    }
-
-    #[test]
-    fn should_work_with_an_application(){
-
     }
 
     #[test]

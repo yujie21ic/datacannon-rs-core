@@ -7,6 +7,6 @@
 
 #[derive(Clone, Debug)]
 pub struct RabbitMQHAPolicy{
-    ha_policy: String,
-    replication_factor: i8,
+    pub ha_policy: String,
+    pub replication_factor: i8,
 }

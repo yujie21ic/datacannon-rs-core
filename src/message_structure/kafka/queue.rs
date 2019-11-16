@@ -10,9 +10,10 @@
 /// # Arguments
 /// * `queue` - Name of the queue
 /// * `default_exchange` - Exchange for te
+/// * `ha_policy` - Availability policy
+#[derive(Clone, Debug)]
 pub struct KafkaQueue{
     queue: String,
     default_exchange: String,
     ha_policy: Option<i8>,
-
 }

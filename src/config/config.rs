@@ -120,6 +120,7 @@ pub struct CannonConfig{
     pub cannon_cache_backend: Option<BackendConfig>,
     pub send_events: bool,
     pub queues: Queues,
+    pub default_exchange: String,
     pub default_exchange_type: ExchangeType,
     pub default_queue: String,
     pub event_queue: String,
@@ -173,7 +174,7 @@ impl CannonConfig{
     pub fn new(conn_inf: ConnectionConfig, backend: BackendConfig) -> CannonConfig{
         let qs = Queues::new(
             Vec::<GenericQueue>::new(),
-            "celery".to_string(),
+            Some("celery".to_string()),
             None,
             None,
             None,
@@ -186,6 +187,7 @@ impl CannonConfig{
             cannon_cache_backend: None,
             send_events: false,
             queues: qs,
+            default_exchange: String::from("celery"),
             default_exchange_type: ExchangeType::Direct,
             default_queue: String::from("celery"),
             event_queue: String::from("celeryevent"),

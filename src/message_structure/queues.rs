@@ -161,20 +161,20 @@ impl Queues{
     /// # Arguments
     /// * ``
     pub fn deselect(&mut self, exclude: Option<HashSet<String>>){
-
+        unimplemented!()
     }
 
     /// Get a queue
     pub fn get_queue(&mut self, queue_name: String) -> Queues{
-
+        unimplemented!()
     }
 
     /// Create a new queue set
     pub fn new(queues: Vec<GenericQueue>,
-        default_exchange: String,
+        default_exchange: Option<String>,
         default_routing_key: Option<String>,
         create_missing: Option<bool>,
-        ha_policy: Option<String>,
+        ha_policy: Option<HAPolicy>,
         max_priority: Option<i8>,
         consume_from: Option<Vec<GenericQueue>>) -> Queues{
         Queues{

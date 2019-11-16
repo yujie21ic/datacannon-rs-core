@@ -7,38 +7,50 @@
 use amiquip::Channel;
 use crate::message_protocol::message::Message;
 use crate::error::queue_error::QueueError;
+use crate::config::config::CannonConfig;
 
 
 /// Trait implementing required queue functions.
 pub trait AMQPQueueHandler{
 
-    /// Performs setup operations and calls create.
+    /// Performs setup operations and calls create.Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
+    /// The return value includes an operation status or an error status.
     ///
     /// # Arguments
     /// * `channel` - The `amiquip::Channel` for performing operations on
-    fn setup(&self, channel: &Channel) -> Result<bool, QueueError>;
+    /// * `config` - The `crate::config::config::CannonConfig` for the app
+    fn setup(&self, channel: &Channel, config: &CannonConfig) -> Result<bool, QueueError>;
 
-    /// Performs teardown operations and calls drop
+    /// Performs teardown operations and calls drop. Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
+    /// The return value includes an operation status or an error status.
     ///
     /// # Arguments
     /// * `channel` - The `amiquip::Channel` for performing operations
-    fn teardown(&self, channel: &Channel) -> Result<bool, QueueError>;
+    /// * `config` - The `crate::config::config::CannonConfig` for the app
+    fn teardown(&self, channel: &Channel, config: &CannonConfig) -> Result<bool, QueueError>;
 
-    /// Sends messages to the queue
+    /// Sends messages to the queue. Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
+    /// The return value includes an operation status or an error status.
     ///
     /// # Arguments
     /// * `channel` - The `amiquip::Channel` for performing operations
-    fn send(&self, channel: &Channel, message: Message) -> Result<bool, QueueError>;
+    /// * `config` - The `crate::config::config::CannonConfig` for the app
+    /// * `message` - The `crate::message_protocol::message::Message`
+    fn send(&self, channel: &Channel, config: &CannonConfig, message: Message) -> Result<bool, QueueError>;
 
-    /// Create the queue
+    /// Create the queue. Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
+    /// The return value includes an operation status or an error status.
     ///
     /// # Arguments
     /// * `channel` - The `amiquip::Channel` for performing operations
-    fn create(&self, channel: &channel) -> Result<bool, QueueError>;
+    /// * `config` - The `crate::config::config::CannonConfig` for the app
+    fn create(&self, channel: &Channel, config: &CannonConfig) -> Result<bool, QueueError>;
 
-    /// Drop the Queue
+    /// Drop the Queue. Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
+    /// The return value includes an operation status or an error status.
     ///
     /// # Arguments
     /// * `channel` - The `amiquip::Channel` for dropping messages
-    fn drop(&self, channel: &channel) -> Result<bool, QueueError>;
+    /// * `config` - The `crate::config::config::CannonConfig` for the app
+    fn drop(&self, channel: &Channel, config: &CannonConfig) -> Result<bool, QueueError>;
 }
