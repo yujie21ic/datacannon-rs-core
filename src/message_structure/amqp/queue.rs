@@ -204,7 +204,7 @@ mod tests{
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
     use uuid::Uuid;
     use crate::broker::amqp::broker_trait::AMQPBroker;
-    use crate::replication::rabbitmq::RabbitMQHAPolicy;
+    use crate::replication::rabbitmq::{RabbitMQHAPolicy, RabbitMQHAPolicies};
     use crate::connection::kafka::connection_inf::KafkaConnectionInf;
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
@@ -253,7 +253,7 @@ mod tests{
         let password = Some("rtp*4500".to_string());
         let broker_conn = AMQPConnectionInf::new(protocol, host, port, vhost, username, password, false, None, None);
         let policy = RabbitMQHAPolicy{
-            ha_policy: "all".to_string(),
+            ha_policy: RabbitMQHAPolicies::ALL,
             replication_factor: 1,
         };
         AMQPQueue::new(
