@@ -16,11 +16,10 @@ use crate::router::router::Router;
 use amiquip::Channel;
 use crate::app::send_rpc::SendArgs;
 use crate::broker::amqp::broker_trait::AMQPBroker;
-use crate::message_structure::queues::Queues;
 
 
 /// create a rabbitmq broker future
-async fn send_task_future(channel: Channel, celery_config: CannonConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: &mut Receiver<SendArgs>, num_futures: usize) -> Result<(), &'static str> {
+async fn send_task_future(channel: Channel, celery_config: CannonConfig, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: &mut Receiver<SendArgs>, num_futures: usize) -> Result<(), &'static str> {
 
     let conf = celery_config.clone();
     loop{

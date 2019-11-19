@@ -28,7 +28,6 @@ use crate::router::router::Router;
 use crate::task::config::TaskConfig;
 use std::future::Future;
 use tokio::sync::mpsc::{Sender, Receiver};
-use crate::message_structure::queues::Queues;
 use crate::config::config::CannonConfig;
 use crate::connection::connection::ConnectionConfig;
 use crate::error::broker_type_error::BrokerTypeError;
@@ -38,8 +37,6 @@ use uuid::Uuid;
 /// RabbitMQ Broker
 pub struct RabbitMQBroker{
     config: CannonConfig,
-    routers: Option<HashMap<String, Router>>,
-    queues: Option<Queues>,
     num_futures: usize,
     pool: ThreadableRabbitMQConnectionPool,
     app_receiver: Receiver<Message>,
@@ -228,7 +225,7 @@ impl RabbitMQBroker{
     }
 
     /// Create a new broker
-    pub fn new(config: &mut CannonConfig, queues: Option<Queues>, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: Receiver<Message>, num_futures: usize) -> Result<RabbitMQBroker, BrokerTypeError>{
+    pub fn new(config: &mut CannonConfig, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: Receiver<Message>, num_futures: usize) -> Result<RabbitMQBroker, BrokerTypeError>{
         let mut min_conn = num_cpus::get() - 1;
         if min_connections.is_some(){
             min_conn = min_connections.unwrap();
@@ -238,8 +235,6 @@ impl RabbitMQBroker{
             let pool = ThreadableRabbitMQConnectionPool::new(&mut cfg.clone(), min_conn);
             let rmb = RabbitMQBroker {
                 config: config.clone(),
-                queues: queues,
-                routers: routers,
                 pool: pool,
                 num_futures: num_futures,
                 app_receiver: receiver,
@@ -276,6 +271,7 @@ mod tests {
     use crate::connection::amqp::connection_inf::AMQPConnectionInf;
     use crate::connection::kafka::connection_inf::KafkaConnectionInf;
     use crate::connection::connection::ConnectionConfig;
+    use crate::router::router::Routers;
 
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CannonConfig {
@@ -298,7 +294,8 @@ mod tests {
             host: "".to_string(),
             port: "".to_string(),
         };
-        let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend);
+        let rs = Routers::new();
+        let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend, rs);
         conf
     }
 
@@ -306,7 +303,7 @@ mod tests {
     fn should_create_queue(){
         let mut conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None, None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), Some(s), r, 1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -329,7 +326,7 @@ mod tests {
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf.clone(), None, None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf.clone(), None, Some(1), Some(s), r, 1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -353,7 +350,7 @@ mod tests {
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf.clone(), None, None, Some(1), Some(s), r,1);
+        let rmq = RabbitMQBroker::new(&mut conf.clone(), None,  Some(1), Some(s), r,1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -388,7 +385,7 @@ mod tests {
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut cnf.clone(), None, None, Some(1), Some(s), r,1);
+        let rmq = RabbitMQBroker::new(&mut cnf.clone(), None, Some(1), Some(s), r,1);
         let conn_inf = cnf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);

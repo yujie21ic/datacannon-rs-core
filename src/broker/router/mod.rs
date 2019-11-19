@@ -1,5 +1,0 @@
-/*
-A router to route tasks to broker futures.
-
-Author Andrew Evans
-*/

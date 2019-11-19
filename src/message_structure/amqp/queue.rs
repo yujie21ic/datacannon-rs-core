@@ -8,7 +8,6 @@ Author Andrew Evans
 use amiquip::{AmqpProperties, Queue, Channel, QueueDeclareOptions};
 use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 use crate::connection::amqp::connection_inf::AMQPConnectionInf;
-use crate::message_structure::queues::QueueOptions;
 use crate::message_structure::amqp::amqp_trait::AMQPQueueHandler;
 use crate::message_protocol::message::Message;
 use crate::error::queue_error::QueueError;
@@ -36,7 +35,6 @@ pub struct AMQPQueue {
 
 /// Implements the base queue functions
 impl QueueHandler for AMQPQueue {
-
     /// Get the queue name `std::string::String`
     fn get_name(&self) -> String {
         self.name.clone()
@@ -199,7 +197,8 @@ impl AMQPQueue {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use amiquip::Channel;
+    use std::{panic, thread};
+    use amiquip::{Channel, Result};
     use crate::broker::amqp::rabbitmq::RabbitMQBroker;
     use crate::connection::connection::ConnectionConfig;
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
@@ -210,6 +209,21 @@ mod tests{
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
     use crate::backend::config::BackendConfig;
+    use crate::message_protocol::properties::Properties;
+    use crate::message_protocol::message_body::MessageBody;
+    use crate::message_protocol::headers::Headers;
+    use crate::router::router::Routers;
+
+    fn get_message() -> Message{
+        let body = MessageBody::new(None, None, None, None);
+        let uuid = Uuid::new_v4();
+        let ustr = format!("{}", uuid);
+        let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
+        let reply_queue = Uuid::new_v4();
+        let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
+        let message = Message::new(props, headers, body, None, None);
+        message
+    }
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CannonConfig {
         let protocol = "amqp".to_string();
@@ -225,7 +239,8 @@ mod tests{
             password: None,
             transport_options: None,
         };
-        let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend);
+        let routers = Routers::new();
+        let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend, routers);
         conf
     }
 
@@ -251,11 +266,18 @@ mod tests{
             broker_conn)
     }
 
+    fn drop_test_queue(channel: &Channel){
+        let q = get_test_queue();
+        let config = get_config(None, None);
+        let r= q.drop(channel, &config);
+        assert!(r.is_ok());
+    }
+
     #[test]
     fn should_create_the_queue(){
         let mut conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None, None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), Some(s), r, 1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -264,11 +286,59 @@ mod tests{
             if rconn.is_ok() {
                 let mut c = rconn.unwrap();
                 let channel = c.connection.open_channel(None).unwrap();
-                let q = get_test_queue();
-                let mut r = q.do_create(&channel, &conf);
-                assert!(r.is_ok());
-                r = q.drop(&channel, &conf);
+                let j = thread::spawn(move|| -> Result<bool, QueueError> {
+                    let q = get_test_queue();
+                    let cid = channel.channel_id();
+                    let r = q.do_create(&channel, &conf.clone());
+                    if r.is_ok(){
+                        Ok(r.ok().unwrap())
+                    }else{
+                        Err(r.err().unwrap())
+                    }
+                });
+                let result = j.join();
+                let close_channel = c.connection.open_channel(None).unwrap();
+                let j2 = thread::spawn(move || ->  Result<()>{
+                    drop_test_queue(&close_channel);
+                    Ok(())
+                });
+                let close_result = j2.join();
                 c.connection.close();
+                assert!(close_result.is_ok());
+                assert!(result.is_ok());
+                assert!(result.ok().unwrap().is_ok());
+            }
+        }
+    }
+
+    #[test]
+    fn should_drop_the_queue(){
+        let mut conf = get_config(None, None);
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1), Some(s), r, 1);
+        let mut conn_inf = conf.connection_inf.clone();
+        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
+            let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
+            pool.start();
+            let rconn = pool.get_connection();
+            if rconn.is_ok() {
+                let mut c = rconn.unwrap();
+                let channel = c.connection.open_channel(None).unwrap();
+                let j = thread::spawn(move|| -> Result<()>{
+                    let q = get_test_queue();
+                    let mut r = q.do_create(&channel, &conf);
+                    assert!(r.is_ok());
+                    Ok(())
+                });
+                let result = j.join();
+                let dchannel = c.connection.open_channel(None).unwrap();
+                let j2 = thread::spawn(move|| -> Result<()>{
+                    drop_test_queue(&dchannel);
+                    Ok(())
+                });
+                let drop_result = j2.join();
+                c.connection.close();
+                assert!(result.is_ok());
             } else {
                 assert!(false);
             }
@@ -276,7 +346,39 @@ mod tests{
     }
 
     #[test]
-    fn should_drop_the_queue(){
-
+    fn should_send_message_to_queue(){
+        let mut conf = get_config(None, None);
+        let (s,r) = tokio::sync::mpsc::channel(1024);
+        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1), Some(s), r, 1);
+        let mut conn_inf = conf.connection_inf.clone();
+        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
+            let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
+            pool.start();
+            let rconn = pool.get_connection();
+            if rconn.is_ok() {
+                let mut c = rconn.unwrap();
+                let channel = c.connection.open_channel(None).unwrap();
+                let j = thread::spawn(move|| -> Result<()>{
+                    let q = get_test_queue();
+                    let mut r = q.do_create(&channel, &conf);
+                    assert!(r.is_ok());
+                    let message = get_message();
+                    r = q.send(&channel, &conf, message);
+                    assert!(r.is_ok());
+                    Ok(())
+                });
+                let result = j.join();
+                let dchannel = c.connection.open_channel(None).unwrap();
+                let j2 = thread::spawn(move|| -> Result<()>{
+                    drop_test_queue(&dchannel);
+                    Ok(())
+                });
+                let drop_result = j2.join();
+                c.connection.close();
+                assert!(result.is_ok());
+            } else {
+                assert!(false);
+            }
+        }
     }
 }

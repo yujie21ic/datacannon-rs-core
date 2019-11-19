@@ -12,8 +12,9 @@ use num_cpus;
 use crate::argparse::argtype::ArgType;
 use crate::backend::config::BackendConfig;
 use crate::connection::connection::ConnectionConfig;
-use crate::message_structure::queues::{Queues, Queue, GenericQueue};
+use crate::message_structure::queues::{GenericQueue};
 use crate::replication::replication::HAPolicy;
+use crate::router::router::Routers;
 
 /// Queue persistance type
 ///
@@ -71,9 +72,9 @@ pub struct Admin{
 /// * `connection_inf` - The relevant `crate::connection::connection::ConnectionConfig`
 /// * `broker_connection_retry` - Whether to retry a connection
 /// * `result_backend` - The relevant `crate::backend::config::BackendConfig`
+/// * `routers` - Router objects stored in `crate::router::router::Router`
 /// * `cannon_cache_backend` - Backend for caching
 /// * `send_events` - Whether to send events
-/// * `queues` - Queues for the backend
 /// * `default_exchange_type` - Default exchange name
 /// * `default_queue` - Default queue when message queue not provided
 /// * `event_queue`- Event queue from specified queues
@@ -117,9 +118,9 @@ pub struct CannonConfig{
     pub connection_inf: ConnectionConfig,
     pub broker_connection_retry: bool,
     pub result_backend: BackendConfig,
+    pub routers: Routers,
     pub cannon_cache_backend: Option<BackendConfig>,
     pub send_events: bool,
-    pub queues: Queues,
     pub default_exchange: String,
     pub default_exchange_type: ExchangeType,
     pub default_queue: String,
@@ -171,22 +172,15 @@ impl CannonConfig{
     /// # Arguments
     /// * `conn_inf` - A `crate::connection::connection::ConnectionConfig` holding an appropriate connection config
     /// * `backend` - A `crate::backend::config::BackendConfig`
-    pub fn new(conn_inf: ConnectionConfig, backend: BackendConfig) -> CannonConfig{
-        let qs = Queues::new(
-            Vec::<GenericQueue>::new(),
-            Some("celery".to_string()),
-            None,
-            None,
-            None,
-            None,
-            None);
+    /// * `routers` - Router objects stored in `crate::router::routers::Routers`
+    pub fn new(conn_inf: ConnectionConfig, backend: BackendConfig, routers: Routers) -> CannonConfig{
         CannonConfig{
             connection_inf: conn_inf,
             broker_connection_retry: true,
             result_backend: backend,
             cannon_cache_backend: None,
             send_events: false,
-            queues: qs,
+            routers: routers,
             default_exchange: String::from("celery"),
             default_exchange_type: ExchangeType::Direct,
             default_queue: String::from("celery"),
@@ -263,7 +257,8 @@ mod tests {
             num_acks: 0,
             host: "".to_string(),
             port: "".to_string()};
-        let c = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conf), b);
+        let r  = Routers::new();
+        let c = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conf), b,r);
         let conn_inf = c.connection_inf;
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let url = conn_inf.to_url();

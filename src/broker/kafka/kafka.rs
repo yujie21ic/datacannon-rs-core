@@ -17,12 +17,9 @@ use crate::broker::broker::Broker;
 use crate::config::config::CannonConfig;
 use crate::message_protocol::message::Message;
 use crate::router::router::Router;
-use crate::message_structure::queues::Queues;
 
 pub struct KafkaBroker{
     config: CannonConfig,
-    routers: Option<HashMap<String, Router>>,
-    queues: Option<Queues>,
     topics: Option<HashMap<String, Router>>,
 }
 
