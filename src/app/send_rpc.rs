@@ -18,6 +18,7 @@ use crate::argparse::argtype::ArgType;
 /// * `routing_key` - Override the default routing key
 /// * `shadow` - Overridden name for logging
 /// * `options` - List of Options following known argument types
+#[derive(Clone, Debug)]
 pub struct SendArgs{
     pub message: Message,
     pub exchange: Option<String>,

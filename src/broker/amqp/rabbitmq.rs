@@ -4,43 +4,49 @@
 //! author: Andrew Evans
 //! ---
 
-use std::any::Any;
-use std::borrow::BorrowMut;
-use std::collections::{BTreeMap, HashMap};
-use std::env::Args;
-use std::error::Error;
 
-use amiquip::{AmqpProperties, AmqpValue, Channel, Exchange, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, Queue, QueueDeclareOptions, QueueDeleteOptions};
-use serde_json::{to_string, Value};
-use serde_json::map::Values;
-use tokio;
+use std::collections::HashMap;
 
-use crate::argparse::argtype::ArgType;
-use crate::argparse::kwargs::KwArgs;
+use amiquip::{Channel, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, QueueDeclareOptions, QueueDeleteOptions};
+use serde_json::to_string;
+use tokio::runtime::Runtime;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc;
+
 use crate::broker::amqp::broker_trait::AMQPBroker;
-use crate::broker::broker::Broker;
-use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
-use crate::connection::amqp::threadable_rabbit_mq_connection::ThreadableRabbitMQConnection;
-use crate::connection::pool::Pool;
-use crate::error::{exchange_error::ExchangeError, publish_error::PublishError, queue_error::QueueError};
-use crate::message_protocol::{headers::Headers, message::Message, message_body::MessageBody, properties::Properties};
-use crate::router::router::Router;
-use crate::task::config::TaskConfig;
-use std::future::Future;
-use tokio::sync::mpsc::{Sender, Receiver};
+use crate::broker::broker::{Broker, BrokerEvent, CommunicationEvent};
 use crate::config::config::CannonConfig;
+use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
 use crate::connection::connection::ConnectionConfig;
 use crate::error::broker_type_error::BrokerTypeError;
-use uuid::Uuid;
+use crate::error::exchange_error::ExchangeError;
+use crate::error::publish_error::PublishError;
+use crate::error::queue_error::QueueError;
+use crate::message_protocol::headers::Headers;
+use crate::message_protocol::message::Message;
+use crate::message_protocol::message_body::MessageBody;
+use crate::message_protocol::properties::Properties;
+use crate::router::router::Router;
+use crate::statistics::message::Statistics;
+use crate::task::config::TaskConfig;
 
 
 /// RabbitMQ Broker
+///
+/// # Arguments
+/// * `config` - Canon configuration
+/// * `pool` - RabbitMQ connectionpool
+/// * `broker_futures` - Active futures for monitoring
+/// * `event_senders` - For sending events to futures
+/// * `comm_receivers` - Receivers for communications from futures
+/// * `num_failures` - Number of failures
 pub struct RabbitMQBroker{
     config: CannonConfig,
-    num_futures: usize,
     pool: ThreadableRabbitMQConnectionPool,
-    app_receiver: Receiver<Message>,
-    backend_sender: Option<Sender<Message>>,
+    event_senders: Vec<UnboundedSender<BrokerEvent>>,
+    comm_receivers: Vec<UnboundedReceiver<CommunicationEvent>>,
+    num_failure: i32,
+    current_future: i8,
 }
 
 
@@ -185,29 +191,97 @@ impl AMQPBroker for RabbitMQBroker{
 }
 
 
+/// create a rabbitmq broker future
+async fn send_task_future(channel: Channel, cannon_config: CannonConfig, mut sender: UnboundedSender<CommunicationEvent>, receiver: &mut UnboundedReceiver<BrokerEvent>) -> Result<(), &'static str> {
+    let mut msg_received = 0;
+    let mut msg_sent = 0;
+    loop{
+        let m = receiver.recv().await.unwrap();
+        msg_received += 1;
+        if let BrokerEvent::SEND(m) = m {
+            let props = m.message.properties.clone();
+            let headers = m.message.headers.clone();
+            let body = m.message.body.clone();
+            let kwargs = m.message.kwargs.clone();
+            let exchange = m.exchange;
+            let routing_key = m.routing_key;
+            RabbitMQBroker::do_send(&cannon_config, &channel, props, headers, body, exchange, routing_key);
+            msg_sent += 1;
+        }else if let BrokerEvent::GET_STATS = m{
+            let stats_message = Statistics{
+                messages_received: msg_received,
+                messages_sent: msg_sent,
+            };
+            sender.try_send(CommunicationEvent::STATISTICS(stats_message));
+        }else if let BrokerEvent::POISON_PILL = m{
+            break;
+        }
+    }
+    Ok(())
+}
+
 /// Broker implementation
 impl Broker for RabbitMQBroker{
 
+    /// Restart a future when another future completes (called when another terminates)
+    ///
+    /// # Arguments
+    /// * `runtime` - Tokio runtime to create the future on
+    fn create_fut(&mut self, runtime: &Runtime) {
+        let ch = self.pool.get_connection().unwrap().connection.open_channel(None).unwrap();
+        let (mut send, mut rcv): (UnboundedSender<BrokerEvent>, UnboundedReceiver<BrokerEvent>) = mpsc::unbounded_channel();
+        let (mut chsend, mut chrcv): (UnboundedSender<CommunicationEvent>, UnboundedReceiver<CommunicationEvent>) = mpsc::unbounded_channel();
+        let future_config = self.config.clone();
+        let future_sender = chsend.clone();
+        runtime.spawn(async move{
+           send_task_future(ch, future_config, future_sender, &mut rcv).await;
+        });
+        self.comm_receivers.push(chrcv);
+        self.event_senders.push(send);
+    }
+
     /// Start the broker futures
-    fn setup(&mut self, rt: tokio::runtime::Runtime){
-        for i in 0..self.num_futures{
-            
+    async fn setup(&mut self){
+        for i in 0..self.config.num_broker_connections{
+            self.create_fut();
         }
     }
 
-    /// teardown the broker
-    fn teardown(&mut self){
+    /// Drop the future
+    async fn drop_future(&mut self, idx: usize) {
+        // drop receiver
 
+        // drop sender
+
+        // drop future
+
+        // replace future and add new sender and receiver
     }
 
-    /// close all connections and thus the broker. shut down futures first
-    fn close(&mut self){
+    /// Teardown the broker
+    async fn teardown(&mut self){
+        //teardown the futures
+        for i in 0..self.event_senders.len(){
+            let s = self.event_senders.get(i).unwrap();
+            let m = BrokerEvent::POISON_PILL;
+            s.clone().try_send(m);
+        }
+        // close the threadpool
+        self.close();
+    }
+
+    /// Close all connections and thus the broker. shut down futures first
+    async fn close(&mut self){
         self.pool.close_pool();
     }
 
-    /// send a task
-    fn send_task(&mut self, task: String, args: Vec<ArgType>,  app_sender: Sender<Message>) {
-
+    /// Send a task
+    ///
+    /// # Arguments
+    /// * `runtime` - Tokio runtime to send task on
+    /// * `task` - The task config
+    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig) {
+        
     }
 }
 
@@ -225,7 +299,7 @@ impl RabbitMQBroker{
     }
 
     /// Create a new broker
-    pub fn new(config: &mut CannonConfig, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, sender: Option<Sender<Message>>, receiver: Receiver<Message>, num_futures: usize) -> Result<RabbitMQBroker, BrokerTypeError>{
+    pub fn new(config: &mut CannonConfig, routers: Option<HashMap<String, Router>>, min_connections: Option<usize>, num_futures: usize) -> Result<RabbitMQBroker, BrokerTypeError>{
         let mut min_conn = num_cpus::get() - 1;
         if min_connections.is_some(){
             min_conn = min_connections.unwrap();
@@ -236,9 +310,10 @@ impl RabbitMQBroker{
             let rmb = RabbitMQBroker {
                 config: config.clone(),
                 pool: pool,
-                num_futures: num_futures,
-                app_receiver: receiver,
-                backend_sender: sender,
+                event_senders: vec![],
+                comm_receivers: vec![],
+                num_failure: 0,
+                current_future: 0,
             };
             Ok(rmb)
         }else{
@@ -263,16 +338,15 @@ mod tests {
     use crate::broker::amqp::broker_trait::AMQPBroker;
     use crate::broker::amqp::rabbitmq::RabbitMQBroker;
     use crate::config::config::CannonConfig;
+    use crate::connection::amqp::connection_inf::AMQPConnectionInf;
     use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
+    use crate::connection::connection::ConnectionConfig;
+    use crate::connection::kafka::connection_inf::KafkaConnectionInf;
+    use crate::router::router::Routers;
     use crate::security::ssl::SSLConfig;
     use crate::security::uaa::UAAConfig;
 
     use super::*;
-    use crate::connection::amqp::connection_inf::AMQPConnectionInf;
-    use crate::connection::kafka::connection_inf::KafkaConnectionInf;
-    use crate::connection::connection::ConnectionConfig;
-    use crate::router::router::Routers;
-
 
     fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CannonConfig {
         let protocol = "amqp".to_string();
@@ -303,7 +377,7 @@ mod tests {
     fn should_create_queue(){
         let mut conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1),  1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -326,7 +400,7 @@ mod tests {
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf.clone(), None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf.clone(), None, Some(1),  1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -350,7 +424,7 @@ mod tests {
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf.clone(), None,  Some(1), Some(s), r,1);
+        let rmq = RabbitMQBroker::new(&mut conf.clone(), None,  Some(1), 1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -385,7 +459,7 @@ mod tests {
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
         let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut cnf.clone(), None, Some(1), Some(s), r,1);
+        let rmq = RabbitMQBroker::new(&mut cnf.clone(), None, Some(1),1);
         let conn_inf = cnf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);

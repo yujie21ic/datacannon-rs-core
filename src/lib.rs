@@ -2,6 +2,7 @@
 //!
 //! `datacannon_rs_core` is a collection of building blocks for workers and clients in the
 //! job queue system.
+#![feature(box_into_pin)]
 pub mod argparse;
 pub mod app;
 pub mod backend;
@@ -18,3 +19,5 @@ pub mod error;
 pub mod replication;
 pub mod router;
 pub mod registry;
+pub mod statistics;
+pub mod time;

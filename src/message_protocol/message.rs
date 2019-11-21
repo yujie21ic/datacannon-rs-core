@@ -14,6 +14,7 @@ use crate::message_protocol::{headers::Headers, message_body::MessageBody, prope
 
 
 /// Message objects to be packaged when ready
+#[derive(Clone, Debug)]
 pub struct Message{
     pub properties: Properties,
     pub headers: Headers,
