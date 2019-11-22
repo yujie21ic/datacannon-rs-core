@@ -4,17 +4,18 @@
 //! author: Andrew Evans
 //! ---
 
-use tokio::sync::mpsc::Sender;
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc::Sender;
 
-use crate::broker::amqp::rabbitmq::RabbitMQBroker;
+use crate::app::send_rpc::SendArgs;
 use crate::argparse::argtype::ArgType;
+use crate::broker::amqp::rabbitmq::RabbitMQBroker;
+use crate::broker::kafka::kafka::KafkaBroker;
 use crate::connection::pool::Pool;
 use crate::message_protocol::message::Message;
-use crate::broker::kafka::kafka::KafkaBroker;
 use crate::statistics::message::Statistics;
-use crate::app::send_rpc::SendArgs;
 use crate::task::config::TaskConfig;
+use crate::message_protocol::message_body::MessageBody;
 
 
 /// An enumeration of available brokers
@@ -59,17 +60,20 @@ pub trait Broker{
     fn create_fut(&mut self, runtime: &Runtime);
 
     /// start the broker
-    async fn setup(&mut self);
+    fn setup(&mut self, runtime: &Runtime);
 
     /// tear down the broker
-    async fn teardown(&mut self);
+    fn teardown(&mut self);
 
     /// close the broker which should call teardown
-    async fn close(&mut self);
+    fn close(&mut self);
 
     /// send a task
-    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig);
+    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig, message_body: Option<MessageBody>);
+
+    /// Allows workers to subscribe to the broker
+    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CanonConfig);
 
     /// Drop a specific future on failure
-    async fn drop_future(&mut self, idx: usize);
+    fn drop_future(&mut self, idx: usize);
 }

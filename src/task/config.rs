@@ -9,6 +9,10 @@ use crate::argparse::kwargs::KwArgs;
 use crate::config::config::CannonConfig;
 use uuid::Uuid;
 use chrono::Utc;
+use crate::message_protocol::message_body::MessageBody;
+use crate::message_protocol::message::Message;
+use crate::message_protocol::properties::Properties;
+use crate::message_protocol::headers::Headers;
 
 
 /// Task Configuration
@@ -29,12 +33,14 @@ pub struct TaskConfig{
     kwargs: KwArgs,
     reply_to: String,
     correlation_id: String,
-    expires: i64,
+    result_expires: i64,
     priority: i8,
     time_limit: i64,
     soft_time_limit: i64,
-    eta: String,
-    retries: i8,
+    eta: Option<i64>,
+    retries: u8,
+    lang: String,
+    shadow: Option<String>,
 }
 
 
@@ -42,12 +48,12 @@ pub struct TaskConfig{
 impl TaskConfig{
 
     /// Get the number of retries `std::i8`
-    pub fn get_retries(&self) -> i8{
+    pub fn get_retries(&self) -> u8{
         self.retries.clone()
     }
 
     /// Get the eta date `std::String`
-    pub fn get_eta(&self) -> String{
+    pub fn get_eta(&self) -> Option<i64>{
         self.eta.clone()
     }
 
@@ -67,8 +73,8 @@ impl TaskConfig{
     }
 
     /// Get the time to live
-    pub fn get_expires(&self) -> i64{
-        self.expires.clone()
+    pub fn get_result_expires(&self) -> i64{
+        self.result_expires.clone()
     }
 
     /// Get the correlation id `std::String`
@@ -96,7 +102,44 @@ impl TaskConfig{
         self.task_name.clone()
     }
 
+    pub fn get_task_lang(&self) -> String{
+        self.lang.clone()
+    }
+
+    /// Get the logging nickname `std::String`
+    pub fn get_shadow(&self) -> Option<String>{self.shadow.clone()}
+
+    /// Convert to a message body
+    ///
+    /// # Arguments
+    /// * `config` - configuration for non-overidden variables
+    /// * `message_body` - Message body to add to the message
+    pub fn to_message(&self, config: &CannonConfig, message_body: Option<MessageBody>) -> Message{
+        let properties = Properties::new(
+            self.correlation_id.clone(),
+            config.accept_content.clone(),
+            config.encoding_type.clone(),
+            Some(self.reply_to.clone()));
+        //let headers = Headers::new(self.lang, self.task_name, self.correlation_id, self.);
+            unimplemented!()
+    }
+
     /// Create a new configuration
+    ///
+    /// # Arguments
+    /// * `config` - The `crate::config::CannonConfig`
+    /// * `task_name` - Name of the task
+    /// * `args` - The `crate::argparse::args::Args` for the task
+    /// * `kwargs` - The `crate::argparse::kwargs:KwArgs` for the task
+    /// * `reply_to` - Queue to reply to
+    /// * `correlation_id` - The correlation id
+    /// * `result_expires` - Result expiration time to live
+    /// * `priority` - Result priority
+    /// * `time_limit` - Hard time limit for the task (TTL)
+    /// * `soft_time_limit` - Soft time limit ttl
+    /// * `eta` - Estimated time of arrival
+    /// * `retries` - Number of times to retry the task
+    /// * `lang` - Language for the task
     pub fn new(
         config: &CannonConfig,
         task_name: String,
@@ -104,12 +147,14 @@ impl TaskConfig{
         kwargs: Option<KwArgs>,
         reply_to: Option<String>,
         correlation_id: Option<String>,
-        expires: Option<String>,
+        result_expires: Option<i64>,
         priority: Option<i8>,
         time_limit: Option<i64>,
         soft_time_limit: Option<i64>,
-        eta: Option<String>,
-        retries: Option<i8>) -> Taskconfig{
+        eta: Option<i64>,
+        retries: Option<u8>,
+        lang: Option<String>,
+        shadow: Option<String>) -> TaskConfig{
 
         let mut targs = Args::new();
         if args.is_some(){
@@ -123,20 +168,60 @@ impl TaskConfig{
 
         let mut corrid = format!("{}", Uuid::new_v4());
         if correlation_id.is_some(){
-            corrid = correlation_id.unwrap();
+            corrid = correlation_id.clone().unwrap();
         }
 
         let mut reply = format!("{}", Uuid::new_v4());
         if reply_to.is_none() && correlation_id.is_some(){
-            reply = corrid;
+            reply = corrid.clone();
         }else if reply_to.is_some(){
             reply = reply_to.unwrap();
         }
 
-        let mut expires =
+        let mut texpires = 36000000;
+        if result_expires.is_some(){
+            texpires = result_expires.unwrap();
+        }
+
+        let mut tpriority = config.task_default_priority.clone();
+        if priority.is_some(){
+            tpriority = priority.unwrap();
+        }
+
+        let mut ttime_limit = 36000000;
+        if time_limit.is_some(){
+            ttime_limit = time_limit.unwrap();
+        }
+
+        let mut tsoft_time_limit = 36000000;
+        if soft_time_limit.is_some(){
+            tsoft_time_limit = soft_time_limit.unwrap();
+        }
+
+        let mut tretries = config.task_retries.clone();
+        if retries.is_some(){
+            tretries = retries.unwrap();
+        }
+
+        let mut tlang = config.default_lang.clone();
+        if lang.is_some(){
+            tlang = lang.unwrap();
+        }
+
         TaskConfig{
             task_name: task_name,
-
+            args: targs,
+            kwargs: tkwargs,
+            reply_to: reply,
+            correlation_id: corrid,
+            result_expires: texpires,
+            priority: tpriority,
+            time_limit: ttime_limit,
+            soft_time_limit: tsoft_time_limit,
+            eta: eta,
+            retries: tretries,
+            lang: tlang,
+            shadow: shadow,
         }
     }
 }

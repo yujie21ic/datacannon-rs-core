@@ -276,8 +276,7 @@ mod tests{
     #[test]
     fn should_create_the_queue(){
         let mut conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), 1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -314,8 +313,7 @@ mod tests{
     #[test]
     fn should_drop_the_queue(){
         let mut conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1),  1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
@@ -348,8 +346,7 @@ mod tests{
     #[test]
     fn should_send_message_to_queue(){
         let mut conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
-        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1), Some(s), r, 1);
+        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1),  1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
             let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);

@@ -11,7 +11,7 @@ use chrono::Utc;
 ///
 /// # Arguments
 /// * `offset` - Additional offset seconds
-fn get_future_date(offset: i64) -> i64{
+pub fn get_future_date(offset: i64) -> i64{
     let dt = Utc::now().timestamp();
     dt + offset
 }

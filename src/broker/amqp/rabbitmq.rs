@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use amiquip::{Channel, ExchangeDeclareOptions, ExchangeType, FieldTable, Publish, QueueDeclareOptions, QueueDeleteOptions};
-use serde_json::to_string;
+use serde_json::{to_string, Value};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
@@ -214,6 +214,7 @@ async fn send_task_future(channel: Channel, cannon_config: CannonConfig, mut sen
             };
             sender.try_send(CommunicationEvent::STATISTICS(stats_message));
         }else if let BrokerEvent::POISON_PILL = m{
+            receiver.close();
             break;
         }
     }
@@ -241,25 +242,29 @@ impl Broker for RabbitMQBroker{
     }
 
     /// Start the broker futures
-    async fn setup(&mut self){
+    fn setup(&mut self, runtime: &Runtime){
         for i in 0..self.config.num_broker_connections{
-            self.create_fut();
+            self.create_fut(runtime);
         }
     }
 
     /// Drop the future
-    async fn drop_future(&mut self, idx: usize) {
-        // drop receiver
-
-        // drop sender
-
-        // drop future
+    ///
+    /// # Arguments
+    /// * `idx` - Index of the future to drop
+    fn drop_future(&mut self, idx: usize) {
+        // drop receiver and sender
+        let mut  r = self.comm_receivers.get(i).unwrap();
+        r.close();
+        self.comm_receivers.remove(idx);
+        self.event_senders.remove(idx);
 
         // replace future and add new sender and receiver
+        self.create_fut(runtime)
     }
 
     /// Teardown the broker
-    async fn teardown(&mut self){
+    fn teardown(&mut self){
         //teardown the futures
         for i in 0..self.event_senders.len(){
             let s = self.event_senders.get(i).unwrap();
@@ -271,7 +276,7 @@ impl Broker for RabbitMQBroker{
     }
 
     /// Close all connections and thus the broker. shut down futures first
-    async fn close(&mut self){
+    fn close(&mut self){
         self.pool.close_pool();
     }
 
@@ -280,8 +285,17 @@ impl Broker for RabbitMQBroker{
     /// # Arguments
     /// * `runtime` - Tokio runtime to send task on
     /// * `task` - The task config
-    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig) {
-        
+    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig, message_body: Option<MessageBody>) {
+
+    }
+
+    /// Allows workers to subscribe to the broker which may also invoek send_task for chains and chords
+    ///
+    /// # Arguments
+    /// * `runtime` - Runtime for the application
+    /// * `config` - The Cannon Configuration for the application
+    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CanonConfig){
+
     }
 }
 
@@ -376,7 +390,6 @@ mod tests {
     #[test]
     fn should_create_queue(){
         let mut conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
         let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1),  1);
         let mut conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
@@ -399,7 +412,6 @@ mod tests {
     #[test]
     fn should_create_and_bind_queue_to_exchange(){
         let conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
         let rmq = RabbitMQBroker::new(&mut conf.clone(), None, Some(1),  1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
@@ -423,7 +435,6 @@ mod tests {
     #[test]
     fn should_send_task_to_queue(){
         let conf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
         let rmq = RabbitMQBroker::new(&mut conf.clone(), None,  Some(1), 1);
         let conn_inf = conf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
@@ -458,7 +469,6 @@ mod tests {
     #[test]
     fn should_work_with_threads(){
         let cnf = get_config(None, None);
-        let (s,r) = tokio::sync::mpsc::channel(1024);
         let rmq = RabbitMQBroker::new(&mut cnf.clone(), None, Some(1),1);
         let conn_inf = cnf.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {

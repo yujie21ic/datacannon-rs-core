@@ -15,6 +15,8 @@ use crate::broker::broker::Broker;
 use crate::config::config::CannonConfig;
 use crate::message_protocol::message::Message;
 use crate::router::router::Router;
+use crate::task::config::TaskConfig;
+use crate::message_protocol::message_body::MessageBody;
 
 
 /// Kafka Broker
@@ -28,12 +30,12 @@ pub struct KafkaBroker{
 impl Broker for KafkaBroker{
 
     /// Create and store a future fielding network calls
-    fn create_fut(&mut self) {
+    fn create_fut(&mut self, runtime: &Runtime) {
         unimplemented!()
     }
 
     /// Setup the broker
-    fn setup(&mut self) {
+    fn setup(&mut self, runtime: &Runtime) {
         unimplemented!()
     }
 
@@ -48,8 +50,13 @@ impl Broker for KafkaBroker{
     }
 
     ///Send task to broker
-    fn send_task(&mut self, task: String, args: Vec<ArgType>, app_sender: Sender<Message>) {
+    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig, message_body: Option<MessageBody>) {
         unimplemented!()
+    }
+
+    /// Subscribe to queues to consume from. Consumers should be futures.
+    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CanonConfig){
+
     }
 
     /// Drop a future at the given index
