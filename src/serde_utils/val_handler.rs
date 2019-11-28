@@ -6,11 +6,11 @@
 
 use std::collections::BTreeMap;
 
-use amiquip::AmqpValue;
+use crate::AmqpValue;
 use serde_json::Value;
 
 
-/// Convert an `serde_json::Value` to an `amiquip::AmqpValue`
+/// Convert an `serde_json::Value` to an `crate::AmqpValue`
 ///
 /// # Arguments
 /// * `val` - The `serde_json::Value`
@@ -23,32 +23,37 @@ pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
             let v = value_to_amqp_value(arr_val);
             amqp_vec.push(v);
         }
-        AmqpValue::FieldArray(amqp_vec)
+        AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amqp_vec))
     }else if val.is_string(){
         let str = val.as_str().unwrap();
-        AmqpValue::LongString(String::from(str))
+        AmqpValue::LongString(amq_protocol_types::LongString::from(String::from(str)))
     }else if val.is_boolean(){
         let b = val.clone().as_bool().unwrap();
-        AmqpValue::Boolean(b)
+        if b{
+            AmqpValue::Boolean(true)
+        }else {
+            AmqpValue::Boolean(false)
+        }
     }else if val.is_f64(){
         let f = val.clone().as_f64().unwrap();
-        AmqpValue::Double(f)
+        AmqpValue::Double(amq_protocol_types::Double::from(f))
     }else if val.is_i64(){
         let i = val.clone().as_i64().unwrap();
-        AmqpValue::LongLongInt(i)
+        AmqpValue::LongLongInt(amq_protocol_types::LongLongInt::from(i))
     }else if val.is_u64(){
         let u = val.clone().as_u64().unwrap();
-        AmqpValue::Timestamp(u)
+        AmqpValue::Timestamp(amq_protocol_types::Timestamp::from(u))
     }else if val.is_object(){
-        let mut amqp_map = BTreeMap::<String, AmqpValue>::new();
+        let mut amqp_map = BTreeMap::<amq_protocol_types::ShortString, AmqpValue>::new();
         let m = val.as_object().unwrap();
         m.keys();
         let mut it = m.to_owned().into_iter();
         let tup_opt: Option<(String, Value)> = it.next();
         let (k, v) = tup_opt.unwrap();
         let av = value_to_amqp_value(&v);
-        amqp_map.insert(k, av);
-        AmqpValue::FieldTable(amqp_map)
+        let akey = amq_protocol_types::ShortString::from(k);
+        amqp_map.insert(akey, av);
+        AmqpValue::FieldTable(amq_protocol_types::FieldTable::from(amqp_map))
     }else if val.is_null(){
         AmqpValue::Void
     }else {
@@ -58,7 +63,7 @@ pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
 
 #[cfg(test)]
 mod tests{
-    use amiquip::AmqpValue;
+    use crate::AmqpValue;
     use amq_protocol::types::FieldArray;
     use serde_json::Map;
     use serde_json::Value;
@@ -75,7 +80,7 @@ mod tests{
         let varr = Value::from(val_vec);
         let conv_arr = value_to_amqp_value(&varr);
         if let AmqpValue::FieldArray(convarr) = conv_arr{
-            let v = convarr.get(0).unwrap().to_owned();
+            let v = convarr.as_slice().get(0).unwrap().to_owned();
             if let AmqpValue::LongLongInt(v) = v{
                 assert!(v == 132);
             }else{
@@ -145,10 +150,10 @@ mod tests{
         let val = Value::Object(m);
         let av = value_to_amqp_value(&val);
         if let AmqpValue::FieldTable(av) = av{
-            let vopt = av.get("key");
+            let vopt = av.inner().get("key");
             let rv = vopt.unwrap().to_owned();
             if let AmqpValue::LongString(rv) = rv{
-               assert!(rv.eq("val"));
+               assert!(rv.as_str().eq("val"));
             }else{
                 assert!(false);
             }

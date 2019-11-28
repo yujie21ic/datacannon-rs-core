@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::process;
 
-use amiquip::AmqpValue;
+use crate::AmqpValue;
 use amq_protocol::uri::AMQPScheme::AMQP;
 use serde_json::{Map, Number, to_string, Value};
 use uuid::Uuid;
@@ -69,77 +69,77 @@ pub struct Headers{
 /// Headers implementation
 impl Headers{
 
-    /// Convert headers to a `std::collections::BTreeMap<std::string::String, amiquip::AmqpValue>`
-    pub fn convert_to_btree_map(&self) -> BTreeMap<String, AmqpValue>{
-        let mut jmap = BTreeMap::<String, AmqpValue>::new();
-        jmap.insert(String::from("lang"), AmqpValue::LongString(self.lang.clone()));
-        jmap.insert(String::from("task"), AmqpValue::LongString(self.task.clone()));
-        jmap.insert(String::from("id"), AmqpValue::LongString(self.id.clone()));
-        jmap.insert(String::from("root_id"), AmqpValue::LongString(self.root_id.clone()));
+    /// Convert headers to a `std::collections::BTreeMap<std::string::String, crate::AmqpValue>`
+    pub fn convert_to_btree_map(&self) -> BTreeMap<amq_protocol_types::ShortString, AmqpValue>{
+        let mut jmap = BTreeMap::<amq_protocol_types::ShortString, AmqpValue>::new();
+        jmap.insert(amq_protocol_types::ShortString::from(String::from("lang")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.lang.clone())));
+        jmap.insert(amq_protocol_types::ShortString::from(String::from("task")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.task.clone())));
+        jmap.insert(amq_protocol_types::ShortString::from(String::from("id")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.id.clone())));
+        jmap.insert(amq_protocol_types::ShortString::from(String::from("root_id")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.root_id.clone())));
 
         if self.parent_id.is_some() {
-            jmap.insert(String::from("parent_id"), AmqpValue::LongString(self.parent_id.clone().unwrap()));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("parent_id")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.parent_id.clone().unwrap())));
         }else {
-            jmap.insert("parent_id".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("parent_id".to_string()), AmqpValue::Void);
         }
 
         if self.group.is_some() {
-            jmap.insert(String::from("group"), AmqpValue::LongString(self.group.clone().unwrap()));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("group")), AmqpValue::LongString(amq_protocol_types::LongString::from(self.group.clone().unwrap())));
         }else{
-            jmap.insert("group".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("group".to_string()), AmqpValue::Void);
         }
 
         if self.meth.is_some() {
             let v = self.meth.clone().unwrap();
-            jmap.insert(String::from("meth"), AmqpValue::LongString(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("meth")), AmqpValue::LongString(amq_protocol_types::LongString::from(v)));
         }
 
         if self.shadow.is_some(){
             let v = self.shadow.clone().unwrap();
-            jmap.insert(String::from("shadow"), AmqpValue::LongString(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("shadow")), AmqpValue::LongString(amq_protocol_types::LongString::from(v)));
         }else{
-            jmap.insert("shadow".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("shadow".to_string()), AmqpValue::Void);
         }
 
         if self.eta.is_some(){
             let v = self.eta.clone().unwrap();
-            jmap.insert(String::from("eta"), AmqpValue::LongString(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("eta")), AmqpValue::LongString(amq_protocol_types::LongString::from(v)));
         }else{
-            jmap.insert("eta".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("eta".to_string()), AmqpValue::Void);
         }
 
         if self.expires.is_some(){
             let v = self.expires.clone().unwrap();
-            jmap.insert(String::from("expires"), AmqpValue::LongString(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("expires")), AmqpValue::LongString(amq_protocol_types::LongString::from(v)));
         }else{
-            jmap.insert("expires".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("expires".to_string()), AmqpValue::Void);
         }
 
         if self.retries.is_some(){
             let v = self.retries.clone().unwrap();
-            jmap.insert(String::from("retries"), AmqpValue::ShortShortInt(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("retries")), AmqpValue::ShortShortInt(amq_protocol_types::ShortShortInt::from(v)));
         }else{
-            jmap.insert("retries".to_string(), AmqpValue::Void);
+            jmap.insert(amq_protocol_types::ShortString::from("retries".to_string()), AmqpValue::Void);
         }
 
         if self.timelimit.is_some(){
             let v = self.timelimit.clone().unwrap();
             let vtup = vec![AmqpValue::LongLongInt(v.soft), AmqpValue::LongLongInt(v.hard)];
-            jmap.insert(String::from("timelimit"), AmqpValue::FieldArray(vtup));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("timelimit")), AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(vtup)));
         }else{
             let vtup = vec![AmqpValue::Void, AmqpValue::Void];
-            jmap.insert("timelimit".to_string(), AmqpValue::FieldArray(vtup));
+            jmap.insert(amq_protocol_types::ShortString::from("timelimit".to_string()), AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(vtup)));
         }
 
         if self.argsrepr.is_some(){
             let v = self.argsrepr.clone().unwrap();
             let val = v.args_to_vec();
             let jstr = to_string(&Value::Array(val));
-            jmap.insert("argsrepr".to_string(), AmqpValue::LongString(jstr.unwrap()));
+            jmap.insert(amq_protocol_types::ShortString::from("argsrepr".to_string()), AmqpValue::LongString(amq_protocol_types::LongString::from(jstr.unwrap())));
         }else{
             let v = Value::from(Vec::<Value>::new());
             let vm = to_string(&v);
-            jmap.insert("argsrepr".to_string(), AmqpValue::LongString(vm.unwrap()));
+            jmap.insert(amq_protocol_types::ShortString::from("argsrepr".to_string()), AmqpValue::LongString(amq_protocol_types::LongString::from(vm.unwrap())));
         }
 
         if self.kwargsrepr.is_some(){
@@ -147,24 +147,24 @@ impl Headers{
             let vm = to_string(&Value::from(v.convert_to_map()));
             if vm.is_ok() {
                 let jstr = vm.unwrap();
-                jmap.insert(String::from("kwargsrepr"), AmqpValue::LongString(jstr));
+                jmap.insert(amq_protocol_types::ShortString::from(String::from("kwargsrepr")), AmqpValue::LongString(amq_protocol_types::LongString::from(jstr)));
             }
         }else{
             let v = Map::<String, Value>::new();
             let vm = to_string(&Value::from(v));
             if vm.is_ok() {
                 let jstr = vm.unwrap();
-                jmap.insert("kwargsrepr".to_string(), AmqpValue::LongString(jstr));
+                jmap.insert(amq_protocol_types::ShortString::from("kwargsrepr".to_string()), AmqpValue::LongString(amq_protocol_types::LongString::from(jstr)));
             }
         }
 
 
         if self.origin.is_some(){
             let v = self.origin.clone().unwrap();
-            jmap.insert(String::from("origin"), AmqpValue::LongString(v));
+            jmap.insert(amq_protocol_types::ShortString::from(String::from("origin")), AmqpValue::LongString(amq_protocol_types::LongString::from(v)));
         }else{
             let nodename = anon_name::get_anon_nodename(None, None);
-            jmap.insert("origin".to_string(), AmqpValue::LongString(nodename));
+            jmap.insert(amq_protocol_types::ShortString::from("origin".to_string()), AmqpValue::LongString(amq_protocol_types::LongString::from(nodename)));
         }
         jmap
     }

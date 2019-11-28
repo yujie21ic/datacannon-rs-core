@@ -11,11 +11,11 @@ use crate::app::send_rpc::SendArgs;
 use crate::argparse::argtype::ArgType;
 use crate::broker::amqp::rabbitmq::RabbitMQBroker;
 use crate::broker::kafka::kafka::KafkaBroker;
-use crate::connection::pool::Pool;
 use crate::message_protocol::message::Message;
 use crate::statistics::message::Statistics;
 use crate::task::config::TaskConfig;
 use crate::message_protocol::message_body::MessageBody;
+use crate::config::config::CannonConfig;
 
 
 /// An enumeration of available brokers
@@ -72,7 +72,7 @@ pub trait Broker{
     fn send_task(&mut self, runtime: &Runtime, task: TaskConfig, message_body: Option<MessageBody>);
 
     /// Allows workers to subscribe to the broker
-    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CanonConfig);
+    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CannonConfig);
 
     /// Drop a specific future on failure
     fn drop_future(&mut self, idx: usize);

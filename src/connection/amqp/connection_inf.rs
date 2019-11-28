@@ -29,8 +29,10 @@ pub struct AMQPConnectionInf{
     username: Option<String>,
     password: Option<String>,
     is_ssl: bool,
+    ssl_connection_timeout: i64,
     ssl_config: Option<SSLConfig>,
     uaa_config: Option<UAAConfig>,
+    connection_timeout: u64,
 }
 
 
@@ -82,6 +84,16 @@ impl AMQPConnectionInf{
         &self.uaa_config
     }
 
+    /// Get the SSL connection timeout
+    pub fn get_ssl_connection_timeout(&self) -> i64{
+        self.ssl_connection_timeout.clone()
+    }
+
+    /// Get the connection timeout
+    pub fn get_conection_timeout(&self) -> u64{
+        self.connection_timeout.clone()
+    }
+
     /// convert the Information to a URL `std::string::String`
     pub fn to_url(&self) -> String {
         let cinf = self.clone();
@@ -109,7 +121,7 @@ impl AMQPConnectionInf{
     /// * `is_ssl` - Whether to use ssl
     /// * `ssl_config` - SSL configuration if necessary
     /// * `uaa_config` - Connection information for an OAuth UAA server
-    pub fn new(protocol: String, host: String, port: i64, vhost: Option<String>, username: Option<String>, password: Option<String>, is_ssl: bool, ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> AMQPConnectionInf{
+    pub fn new(protocol: String, host: String, port: i64, vhost: Option<String>, username: Option<String>, password: Option<String>, is_ssl: bool, ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>, connection_timeout: u64) -> AMQPConnectionInf{
         AMQPConnectionInf{
             protocol: protocol,
             host: host,
@@ -119,7 +131,9 @@ impl AMQPConnectionInf{
             password: password,
             is_ssl: is_ssl,
             ssl_config: ssl_config,
+            ssl_connection_timeout: 15000,
             uaa_config: uaa_config,
+            connection_timeout: connection_timeout,
         }
     }
 }
@@ -131,14 +145,14 @@ mod tests{
 
     #[test]
     pub fn test_create_url(){
-        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false, None, None);
+        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, None, None, false, None, None,10000);
         let url = cinf.to_url();
         assert!(url.eq("amqp://127.0.0.1:3030"));
     }
 
     #[test]
     pub fn should_use_credentials(){
-        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, Some("test".to_string()), Some("123".to_string()), false, None, None);
+        let cinf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 3030, None, Some("test".to_string()), Some("123".to_string()), false, None, None, 10000);
         let url = cinf.to_url();
         assert!(url.eq("amqp://test:123@127.0.0.1:3030"));
     }

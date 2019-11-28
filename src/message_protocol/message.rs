@@ -4,10 +4,12 @@ A message body for
 Author Andrew Evans
 */
 
-use amiquip::{AmqpProperties, AmqpValue};
+use amq_protocol::protocol::BasicProperties;
+use amq_protocol::types::AMQPValue;
 use amq_protocol::uri::AMQPScheme::AMQP;
 use serde_json::{Map, to_string, Value};
 
+use crate::AmqpProperties;
 use crate::argparse::args::Args;
 use crate::argparse::kwargs::KwArgs;
 use crate::message_protocol::{headers::Headers, message_body::MessageBody, properties::Properties};
@@ -34,7 +36,7 @@ impl Message{
 
         /// get extra properties
         let jheaders = self.headers.convert_to_btree_map();
-        props = props.with_headers(jheaders);
+        props = props.with_headers(amq_protocol_types::FieldTable::from(jheaders));
 
         /// get the message body string
         let mut body_vec = Vec::<Value>::new();
@@ -77,7 +79,7 @@ impl Message{
 
 #[cfg(test)]
 mod tests{
-    use amiquip::AmqpValue;
+    use crate::AmqpValue;
     use amq_protocol::types::AMQPType;
     use serde_json::{from_str, Value};
 

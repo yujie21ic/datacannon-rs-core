@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::vec::Vec;
 
-use amiquip::AmqpValue;
+use crate::AmqpValue;
 use amq_protocol::types::AMQPType;
 use serde_json::{Map, Value};
 use crate::argparse::argtype::{ArgType, arg_to_amqp_value, arg_to_value};

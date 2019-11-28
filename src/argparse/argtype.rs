@@ -4,10 +4,13 @@
 //! author: Andrew Evans
 //! ---
 
+use std::collections::{BTreeMap, HashMap};
 
-use std::collections::{HashMap, BTreeMap};
-use serde_json::{Value, Map};
-use amiquip::{AmqpValue, FieldTable};
+use amq_protocol_types::*;
+use lapin::types::FieldTable;
+use serde_json::{Map, Value};
+
+use crate::AmqpValue;
 
 
 ///Argument Type enum used to store generic values
@@ -37,47 +40,47 @@ pub enum ArgType{
 pub fn arg_to_amqp_value(arg: ArgType) -> AmqpValue{
     match arg{
         ArgType::Map(arg) => {
-            let mut val_map: FieldTable = FieldTable::new();
+            let mut val_map = BTreeMap::<ShortString, AmqpValue>::new();
             for (key, val) in &arg{
                 let amqp_val = arg_to_amqp_value(val.clone());
-                val_map.insert(key.clone(), amqp_val);
+                let short_key = ShortString::from(key.clone());
+                val_map.insert(short_key, amqp_val);
             }
-            AmqpValue::FieldTable(val_map)
+            AMQPValue::FieldTable(amq_protocol_types::FieldTable::from(val_map))
         },
         ArgType::Bool(arg) =>{
-            AmqpValue::Boolean(arg)
+            if arg {
+                AmqpValue::Boolean(true)
+            }else{
+                AmqpValue::Boolean(false)
+            }
         },
         ArgType::String(arg) =>{
-            AmqpValue::LongString(arg)
+            AmqpValue::LongString(LongString::from(arg))
         },
         ArgType::Char(arg) => {
             let str = arg.to_string();
-            AmqpValue::LongString(str)
+            AmqpValue::LongString(LongString::from(str))
         },
         ArgType::Int(arg) =>{
-            AmqpValue::LongLongInt(arg)
+            AmqpValue::LongLongInt(amq_protocol_types::LongLongInt::from(arg))
         },
         ArgType::Long(arg) => {
-            AmqpValue::Double(arg)
+            AmqpValue::Double(amq_protocol_types::Double::from(arg))
         },
         ArgType::Double(arg) =>{
-            AmqpValue::Float(arg)
+            AmqpValue::Float(amq_protocol_types::Float::from(arg))
         },
         ArgType::Bytes(arg) =>{
-            let mut amqp_vec = Vec::<AmqpValue>::new();
-            for i in 0..arg.len(){
-                let ssui = arg.get(i).unwrap();
-                amqp_vec.push(AmqpValue::ShortShortUInt(ssui.clone()));
-            }
-            AmqpValue::FieldArray(amqp_vec)
+            AmqpValue::ByteArray(amq_protocol_types::ByteArray::from(arg))
         },
         ArgType::StringArray(arg) => {
             let mut amq_vec = Vec::<AmqpValue>::new();
             for i in 0..arg.len() {
-                let str = arg.get(i).unwrap().clone();
-                amq_vec.push(AmqpValue::LongString(str));
+                let arg_str = arg.get(i).unwrap().clone();
+                amq_vec.push(AmqpValue::LongString(amq_protocol_types::LongString::from(arg_str)));
             }
-            AmqpValue::FieldArray(amq_vec)
+            AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amq_vec))
         },
         ArgType::IntArray(arg) => {
             let mut amq_vec = Vec::<AmqpValue>::new();
@@ -85,7 +88,7 @@ pub fn arg_to_amqp_value(arg: ArgType) -> AmqpValue{
                 let n = arg.get(i).unwrap().clone();
                 amq_vec.push(AmqpValue::LongLongInt(n));
             }
-            AmqpValue::FieldArray(amq_vec)
+            AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amq_vec))
         },
         ArgType::LongArray(arg) => {
             let mut amq_vec = Vec::<AmqpValue>::new();
@@ -93,7 +96,7 @@ pub fn arg_to_amqp_value(arg: ArgType) -> AmqpValue{
                 let n = arg.get(i).unwrap().clone();
                 amq_vec.push(AmqpValue::Double(n));
             }
-            AmqpValue::FieldArray(amq_vec)
+            AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amq_vec))
         },
         ArgType::DoubleArray(arg) =>{
             let mut amq_vec = Vec::<AmqpValue>::new();
@@ -101,18 +104,18 @@ pub fn arg_to_amqp_value(arg: ArgType) -> AmqpValue{
                 let n = arg.get(i).unwrap().clone();
                 amq_vec.push(AmqpValue::Float(n));
             }
-            AmqpValue::FieldArray(amq_vec)
+            AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amq_vec))
         },
         ArgType::CharArray(arg) => {
             let mut amq_vec = Vec::<AmqpValue>::new();
             for i in 0..arg.len() {
                 let n = arg.get(i).unwrap().clone().to_string();
-                amq_vec.push(AmqpValue::LongString(n));
+                amq_vec.push(AmqpValue::LongString(amq_protocol_types::LongString::from(n)));
             }
-            AmqpValue::FieldArray(amq_vec)
+            AmqpValue::FieldArray(amq_protocol_types::FieldArray::from(amq_vec))
         },
         ArgType::Timestamp(arg) =>{
-            AmqpValue::Timestamp(arg)
+            AmqpValue::Timestamp(amq_protocol_types::Timestamp::from(arg))
         },
         _ => {
             AmqpValue::Void

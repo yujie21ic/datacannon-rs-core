@@ -4,7 +4,7 @@
 //! author: Andrew Evans
 //! ---
 
-use amiquip::Channel;
+use lapin::Channel;
 use crate::message_protocol::message::Message;
 use crate::error::queue_error::QueueError;
 use crate::config::config::CannonConfig;

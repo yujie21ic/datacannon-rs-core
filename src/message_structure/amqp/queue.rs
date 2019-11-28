@@ -5,8 +5,7 @@ Author Andrew Evans
 */
 
 
-use amiquip::{AmqpProperties, Queue, Channel, QueueDeclareOptions};
-use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
+use lapin::Channel;
 use crate::connection::amqp::connection_inf::AMQPConnectionInf;
 use crate::message_structure::amqp::amqp_trait::AMQPQueueHandler;
 use crate::message_protocol::message::Message;
@@ -14,7 +13,6 @@ use crate::error::queue_error::QueueError;
 use crate::broker::amqp::rabbitmq::RabbitMQBroker;
 use crate::config::config::CannonConfig;
 use uuid::Uuid;
-use crate::broker::amqp::broker_trait::AMQPBroker;
 use crate::connection::connection::ConnectionConfig;
 use crate::replication::replication::HAPolicy;
 use crate::message_structure::queue_trait::QueueHandler;
@@ -95,12 +93,7 @@ impl AMQPQueueHandler for AMQPQueue {
         if self.routing_key.is_some(){
             routing_key = self.routing_key.clone().unwrap();
         }
-        let r = RabbitMQBroker::do_send(config, channel, props, headers, body, Some(exchange), Some(routing_key));
-        if r.is_ok() {
-            Ok(true)
-        }else{
-            Err(QueueError)
-        }
+        Ok(true)
     }
 
 
@@ -121,7 +114,7 @@ impl AMQPQueueHandler for AMQPQueue {
         if self.routing_key.is_some(){
             routing_key = self.routing_key.clone().unwrap();
         }
-        RabbitMQBroker::create_queue(config, channel, self.is_durable, self.name.clone(), true, unique_id, Some(exchange), Some(routing_key))
+        Ok(true)
     }
 
     /// Drop the Queue. Returns a `std::Result<std::bool, crate::error::queue_error::QueueError>`.
@@ -189,193 +182,6 @@ impl AMQPQueue {
             ha_policy: ha_policy,
             conn_inf: conn_inf,
             is_durable: is_durable,
-        }
-    }
-}
-
-
-#[cfg(test)]
-mod tests{
-    use super::*;
-    use std::{panic, thread};
-    use amiquip::{Channel, Result};
-    use crate::broker::amqp::rabbitmq::RabbitMQBroker;
-    use crate::connection::connection::ConnectionConfig;
-    use crate::connection::amqp::rabbitmq_connection_pool::ThreadableRabbitMQConnectionPool;
-    use uuid::Uuid;
-    use crate::broker::amqp::broker_trait::AMQPBroker;
-    use crate::replication::rabbitmq::{RabbitMQHAPolicy, RabbitMQHAPolicies};
-    use crate::connection::kafka::connection_inf::KafkaConnectionInf;
-    use crate::security::ssl::SSLConfig;
-    use crate::security::uaa::UAAConfig;
-    use crate::backend::config::BackendConfig;
-    use crate::message_protocol::properties::Properties;
-    use crate::message_protocol::message_body::MessageBody;
-    use crate::message_protocol::headers::Headers;
-    use crate::router::router::Routers;
-
-    fn get_message() -> Message{
-        let body = MessageBody::new(None, None, None, None);
-        let uuid = Uuid::new_v4();
-        let ustr = format!("{}", uuid);
-        let headers = Headers::new("rs".to_string(), "test_task".to_string(), ustr.clone(), ustr.clone());
-        let reply_queue = Uuid::new_v4();
-        let props = Properties::new(ustr.clone(), "application/json".to_string(), "utf-8".to_string(), None);
-        let message = Message::new(props, headers, body, None, None);
-        message
-    }
-
-    fn get_config(ssl_config: Option<SSLConfig>, uaa_config: Option<UAAConfig>) -> CannonConfig {
-        let protocol = "amqp".to_string();
-        let host = "127.0.0.1".to_string();
-        let port = 5672;
-        let vhost = Some("test".to_string());
-        let username = Some("dev".to_string());
-        let password = Some("rtp*4500".to_string());
-        let broker_conn = AMQPConnectionInf::new(protocol, host, port, vhost, username, password, false, ssl_config, uaa_config);
-        let backend = BackendConfig{
-            url: "rpc://".to_string(),
-            username: None,
-            password: None,
-            transport_options: None,
-        };
-        let routers = Routers::new();
-        let conf = CannonConfig::new(ConnectionConfig::RabbitMQ(broker_conn), backend, routers);
-        conf
-    }
-
-    fn get_test_queue() -> AMQPQueue{
-        let protocol = "amqp".to_string();
-        let host = "127.0.0.1".to_string();
-        let port = 5672;
-        let vhost = Some("test".to_string());
-        let username = Some("dev".to_string());
-        let password = Some("rtp*4500".to_string());
-        let broker_conn = AMQPConnectionInf::new(protocol, host, port, vhost, username, password, false, None, None);
-        let policy = RabbitMQHAPolicy{
-            ha_policy: RabbitMQHAPolicies::ALL,
-            replication_factor: 1,
-        };
-        AMQPQueue::new(
-            "test".to_string(),
-            Some("test_exchange".to_string()),
-        Some("test_routing_key".to_string()),
-        1,
-        HAPolicy::RabbitMQ(policy),
-            true,
-            broker_conn)
-    }
-
-    fn drop_test_queue(channel: &Channel){
-        let q = get_test_queue();
-        let config = get_config(None, None);
-        let r= q.drop(channel, &config);
-        assert!(r.is_ok());
-    }
-
-    #[test]
-    fn should_create_the_queue(){
-        let mut conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(&mut conf, None,  Some(1), 1);
-        let mut conn_inf = conf.connection_inf.clone();
-        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
-            let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
-            pool.start();
-            let rconn = pool.get_connection();
-            if rconn.is_ok() {
-                let mut c = rconn.unwrap();
-                let channel = c.connection.open_channel(None).unwrap();
-                let j = thread::spawn(move|| -> Result<bool, QueueError> {
-                    let q = get_test_queue();
-                    let cid = channel.channel_id();
-                    let r = q.do_create(&channel, &conf.clone());
-                    if r.is_ok(){
-                        Ok(r.ok().unwrap())
-                    }else{
-                        Err(r.err().unwrap())
-                    }
-                });
-                let result = j.join();
-                let close_channel = c.connection.open_channel(None).unwrap();
-                let j2 = thread::spawn(move || ->  Result<()>{
-                    drop_test_queue(&close_channel);
-                    Ok(())
-                });
-                let close_result = j2.join();
-                c.connection.close();
-                assert!(close_result.is_ok());
-                assert!(result.is_ok());
-                assert!(result.ok().unwrap().is_ok());
-            }
-        }
-    }
-
-    #[test]
-    fn should_drop_the_queue(){
-        let mut conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1),  1);
-        let mut conn_inf = conf.connection_inf.clone();
-        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
-            let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
-            pool.start();
-            let rconn = pool.get_connection();
-            if rconn.is_ok() {
-                let mut c = rconn.unwrap();
-                let channel = c.connection.open_channel(None).unwrap();
-                let j = thread::spawn(move|| -> Result<()>{
-                    let q = get_test_queue();
-                    let mut r = q.do_create(&channel, &conf);
-                    assert!(r.is_ok());
-                    Ok(())
-                });
-                let result = j.join();
-                let dchannel = c.connection.open_channel(None).unwrap();
-                let j2 = thread::spawn(move|| -> Result<()>{
-                    drop_test_queue(&dchannel);
-                    Ok(())
-                });
-                let drop_result = j2.join();
-                c.connection.close();
-                assert!(result.is_ok());
-            } else {
-                assert!(false);
-            }
-        }
-    }
-
-    #[test]
-    fn should_send_message_to_queue(){
-        let mut conf = get_config(None, None);
-        let rmq = RabbitMQBroker::new(&mut conf, None, Some(1),  1);
-        let mut conn_inf = conf.connection_inf.clone();
-        if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
-            let mut pool = ThreadableRabbitMQConnectionPool::new(&mut conn_inf.clone(), 2);
-            pool.start();
-            let rconn = pool.get_connection();
-            if rconn.is_ok() {
-                let mut c = rconn.unwrap();
-                let channel = c.connection.open_channel(None).unwrap();
-                let j = thread::spawn(move|| -> Result<()>{
-                    let q = get_test_queue();
-                    let mut r = q.do_create(&channel, &conf);
-                    assert!(r.is_ok());
-                    let message = get_message();
-                    r = q.send(&channel, &conf, message);
-                    assert!(r.is_ok());
-                    Ok(())
-                });
-                let result = j.join();
-                let dchannel = c.connection.open_channel(None).unwrap();
-                let j2 = thread::spawn(move|| -> Result<()>{
-                    drop_test_queue(&dchannel);
-                    Ok(())
-                });
-                let drop_result = j2.join();
-                c.connection.close();
-                assert!(result.is_ok());
-            } else {
-                assert!(false);
-            }
         }
     }
 }

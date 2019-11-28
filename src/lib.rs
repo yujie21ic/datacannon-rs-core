@@ -21,3 +21,5 @@ pub mod router;
 pub mod registry;
 pub mod statistics;
 pub mod time;
+pub use amq_protocol::protocol::basic::AMQPProperties as AmqpProperties;
+pub use amq_protocol::types::AMQPValue as AmqpValue;

@@ -119,7 +119,8 @@ mod tests{
         Some("rtp*4500".to_string()),
         false,
         None,
-        None);
+        None,
+        10000);
         let q = AMQPQueue::new("test_queue".to_string(), exch.clone(), rkey.clone(), max_priority.clone().unwrap(), HAPolicy::RabbitMQ(ha_policy), true, conn_inf);
         let mut qs = Vec::<GenericQueue>::new();
         qs.push(GenericQueue::AMQPQueue(q));

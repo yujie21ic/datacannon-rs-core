@@ -55,7 +55,7 @@ impl Broker for KafkaBroker{
     }
 
     /// Subscribe to queues to consume from. Consumers should be futures.
-    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CanonConfig){
+    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CannonConfig){
 
     }
 

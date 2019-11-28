@@ -4,9 +4,9 @@
 //! author: Andrew Evans
 //! ---
 
+use lapin::ExchangeKind;
 use std::collections::HashMap;
 
-use amiquip::ExchangeType;
 use num_cpus;
 
 use crate::argparse::argtype::ArgType;
@@ -126,11 +126,11 @@ pub struct CannonConfig{
     pub cache_backend: Option<BackendConfig>,
     pub send_events: bool,
     pub default_exchange: String,
-    pub default_exchange_type: ExchangeType,
+    pub default_exchange_type: ExchangeKind,
     pub default_queue: String,
     pub event_queue: String,
     pub event_exchange: String,
-    pub event_exchange_type: ExchangeType,
+    pub event_exchange_type: ExchangeKind,
     pub event_routing_key: String,
     pub result_exchange: String,
     pub accept_content: String,
@@ -228,11 +228,11 @@ impl CannonConfig{
             send_events: false,
             routers: routers,
             default_exchange: String::from("cannon"),
-            default_exchange_type: ExchangeType::Direct,
+            default_exchange_type: ExchangeKind::Direct,
             default_queue: String::from("cannon"),
             event_queue: String::from("cannon"),
             event_exchange: String::from("cannon_event"),
-            event_exchange_type: ExchangeType::Topic,
+            event_exchange_type: ExchangeKind::Topic,
             event_routing_key: String::from("cannonevent"),
             result_exchange: String::from("cannonresult"),
             accept_content: String::from("application/json"),
@@ -286,7 +286,8 @@ mod tests {
             Some(String::from("rtp*4500")),
             false,
             None,
-            None
+            None,
+            10000,
         );
         let b = BackendConfig{
             url: "fake".to_string(),

@@ -8,44 +8,25 @@
 /// SSL Configuration
 ///
 /// # Arguments
-/// * `key_file` - Key file path `std::string::String`
 /// * `cert_file`- Certification file path `std::string::String`
-/// * `ca_certs` - CA Certifications file path
-/// * `cert_reqs` - Require certification
 /// * `is_pem` - Certification type is PEM
 /// * `domain`- Domain for the SSL file
 #[derive(Clone, Debug)]
 pub struct SSLConfig{
-    key_file: String,
-    cert_file: String,
-    ca_certs: String,
-    cert_reqs: bool,
+    cert_file: Option<String>,
     is_pem: bool,
     domain: String,
+    ssl_timeout: i64,
+    der_password: Option<String>,
 }
 
 
 ///SSL Configuration
 impl SSLConfig{
 
-    /// Obtain the key file reference `std::string::String`
-    pub fn get_key_file(&self) -> &String{
-        &self.key_file
-    }
-
     /// Get the cert file `std::string::String`
-    pub fn get_cert_file(&self) -> &String{
-        &self.cert_file
-    }
-
-    /// Get the CA certs file `std::string::String`
-    pub fn get_ca_certs(&self) -> &String{
-        &self.ca_certs
-    }
-
-    /// Should certification be required `std::bool`
-    pub fn get_cert_reqs(&self) -> &bool{
-        &self.cert_reqs
+    pub fn get_cert_file(&self) -> Option<String>{
+        self.cert_file.clone()
     }
 
     /// Is the file in pem format `std::bool`
@@ -58,22 +39,30 @@ impl SSLConfig{
         &self.domain
     }
 
-    /// Create teh new SSL config
+    /// Get the SSL Timeout
+    pub fn get_ssl_timeout(&self) -> i64{
+        self.ssl_timeout.clone()
+    }
+
+    /// Get the der password
+    pub fn get_der_password(&self) -> Option<String>{
+        self.der_password.clone()
+    }
+
+    /// Create the new SSL config
+    ///
     /// # Arguments
-    /// * `key_file` - Key file path `std::string::String`
     /// * `cert_file`- Certification file path `std::string::String`
-    /// * `ca_certs` - CA Certifications file path
-    /// * `cert_reqs` - Require certification
     /// * `is_pem` - Certification type is PEM
     /// * `domain`- Domain for the SSL file
-    pub fn new(key_file: String, cert_file: String, ca_certs: String, cert_reqs: bool, is_pem: bool, domain: String) -> SSLConfig{
+    /// * `ssl_timeout` - The SSL timeout
+    pub fn new(cert_file: Option<String>, is_pem: bool, domain: String, ssl_timeout: i64, der_password: Option<String>) -> SSLConfig{
         SSLConfig{
-            key_file: key_file,
             cert_file: cert_file,
-            ca_certs: ca_certs,
-            cert_reqs: cert_reqs,
             is_pem: is_pem,
             domain: domain,
+            ssl_timeout: ssl_timeout,
+            der_password: der_password,
         }
     }
 

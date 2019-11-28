@@ -6,9 +6,8 @@
 
 use std::vec::Vec;
 
-use amiquip::AmqpValue;
+use crate::AmqpValue;
 use amq_protocol::types::AMQPType;
-use amq_protocol::uri::AMQPScheme::AMQP;
 use serde_json::Value;
 
 use crate::serde_utils::val_handler::value_to_amqp_value;
