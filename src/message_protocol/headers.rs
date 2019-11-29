@@ -5,12 +5,9 @@
 //! ---
 
 use std::collections::BTreeMap;
-use std::process;
 
 use crate::AmqpValue;
-use amq_protocol::uri::AMQPScheme::AMQP;
-use serde_json::{Map, Number, to_string, Value};
-use uuid::Uuid;
+use serde_json::{Map, to_string, Value};
 
 use crate::argparse::{args::Args, kwargs::KwArgs};
 use crate::nodename::anon_name;

@@ -1,11 +1,8 @@
-/*
-Broker configuration
-
-Author Andrew Evans
-*/
-
-use crate::router::router::Router;
-use std::collections::HashMap;
+//! Broker configuration
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
 
 /// Broker configuration

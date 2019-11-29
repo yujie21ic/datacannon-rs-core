@@ -1,31 +1,20 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::error::Error as StdError;
 use std::fs;
-use std::net::SocketAddr;
-use std::ops::Deref;
 use std::result::Result as StdResult;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use amq_protocol::tcp::AMQPUriTcpExt;
 use lapin::{
-    BasicProperties, confirmation::Confirmation, Connection, ConnectionProperties,
-    ConsumerDelegate, Error, message::DeliveryResult, options::*, Result, types::FieldTable,
-};
-use log::info;
+    confirmation::Confirmation, Connection, ConnectionProperties, Error, Result};
 use native_tls::{Certificate, Identity};
 use tcp_stream::{HandshakeError, NativeTlsConnector};
-use tokio::prelude::*;
 use tokio;
 use tokio::runtime::Runtime;
 use tokio::time::timeout;
-
 
 use crate::connection::amqp::connection_inf::AMQPConnectionInf;
 use crate::error::connection_failed::ConnectionFailed;
 use crate::error::ssl_error::SSLError;
 use crate::security::ssl::SSLConfig;
-use std::time::Duration;
 
 
 /// Get the pem bytes `std::option::Option<std::string::String>`
@@ -198,13 +187,8 @@ pub fn get_connection(conn_inf: &AMQPConnectionInf, runtime: &mut Runtime) -> St
 
 #[cfg(test)]
 pub mod test{
-    use super::*;
-    use crate::config::config::{CannonConfig, BackendType};
-    use crate::router::router::Routers;
-    use crate::connection::connection::ConnectionConfig;
-    use crate::backend::config::BackendConfig;
     use std::panic;
-    use tokio::prelude::*;
+    use super::*;
 
     #[test]
     fn test_should_create_connection(){

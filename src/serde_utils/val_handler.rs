@@ -64,7 +64,6 @@ pub fn value_to_amqp_value(val: &Value) -> AmqpValue{
 #[cfg(test)]
 mod tests{
     use crate::AmqpValue;
-    use amq_protocol::types::FieldArray;
     use serde_json::Map;
     use serde_json::Value;
 

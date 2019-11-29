@@ -1,13 +1,10 @@
-/*
-A message body for
+//! A general message body containing chords, chains, callbacks, and other meta data
+//!
+//! ---
+//! author: Andrew Evans
+//! ---
 
-Author Andrew Evans
-*/
-
-use amq_protocol::protocol::BasicProperties;
-use amq_protocol::types::AMQPValue;
-use amq_protocol::uri::AMQPScheme::AMQP;
-use serde_json::{Map, to_string, Value};
+use serde_json::{to_string, Value};
 
 use crate::AmqpProperties;
 use crate::argparse::args::Args;
@@ -34,11 +31,11 @@ impl Message{
     pub fn get_message_parts(&self) -> (String, AmqpProperties){
         let mut props = self.properties.convert_to_amqp_properties();
 
-        /// get extra properties
+        // get extra properties
         let jheaders = self.headers.convert_to_btree_map();
         props = props.with_headers(amq_protocol_types::FieldTable::from(jheaders));
 
-        /// get the message body string
+        // get the message body string
         let mut body_vec = Vec::<Value>::new();
 
         if self.args.is_some() {
@@ -79,8 +76,6 @@ impl Message{
 
 #[cfg(test)]
 mod tests{
-    use crate::AmqpValue;
-    use amq_protocol::types::AMQPType;
     use serde_json::{from_str, Value};
 
     use crate::argparse::args::Args;

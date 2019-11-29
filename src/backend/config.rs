@@ -30,7 +30,6 @@ pub struct BackendConfig {
 mod tests{
     use super::*;
     use crate::backend::config::BackendConfig;
-    use crate::backend::config::AvailableBackend::RedisBackend;
 
     #[test]
     fn should_obtain_accessible_backend(){

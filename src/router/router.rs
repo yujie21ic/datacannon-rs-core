@@ -4,7 +4,6 @@
 //! author: Andrew Evans
 //! ---
 
-use regex::Regex;
 use std::collections::HashMap;
 use crate::message_structure::queues::GenericQueue;
 

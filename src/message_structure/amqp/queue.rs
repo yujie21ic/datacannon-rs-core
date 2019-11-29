@@ -13,7 +13,6 @@ use crate::error::queue_error::QueueError;
 use crate::broker::amqp::rabbitmq::RabbitMQBroker;
 use crate::config::config::CannonConfig;
 use uuid::Uuid;
-use crate::connection::connection::ConnectionConfig;
 use crate::replication::replication::HAPolicy;
 use crate::message_structure::queue_trait::QueueHandler;
 

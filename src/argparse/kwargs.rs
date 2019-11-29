@@ -5,11 +5,10 @@
 //! ---
 
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::vec::Vec;
 
 use crate::AmqpValue;
-use amq_protocol::types::AMQPType;
 use serde_json::{Map, Value};
 use crate::argparse::argtype::{ArgType, arg_to_amqp_value, arg_to_value};
 
@@ -92,7 +91,6 @@ impl KwArgs{
 
 #[cfg(test)]
 mod tests{
-    use amq_protocol::types::AMQPType;
     use serde_json::Value;
 
     use super::*;

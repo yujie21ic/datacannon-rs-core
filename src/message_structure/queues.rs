@@ -4,9 +4,6 @@
 //! author: Andrew Evans
 //! ---
 
-use std::collections::HashSet;
-
-use crate::config::config::CannonConfig;
 use crate::message_structure::amqp::queue::AMQPQueue;
 use crate::message_structure::kafka::queue::KafkaQueue;
 

@@ -5,7 +5,7 @@
 //! ---
 
 
-use lapin::{Channel, Connection};
+use lapin::Channel;
 use tokio::runtime::Runtime;
 
 use crate::config::config::CannonConfig;
@@ -57,8 +57,8 @@ impl <'a> Pool for RabbitMQConnectionPool<'a>{
     fn drop_connections(&mut self) {
         for i in 0..self.connections.len(){
             let conn = self.connections.get(i).unwrap();
-            self.runtime.block_on( async move {
-                conn.connection.close(200, "Complete").await;
+            let r = self.runtime.block_on( async move {
+                conn.connection.close(200, "Complete").await
             });
         }
         self.connections = vec![];

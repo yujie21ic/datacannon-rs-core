@@ -22,6 +22,7 @@ use crate::message_protocol::message_body::MessageBody;
 use crate::message_protocol::properties::Properties;
 use crate::router::router::Router;
 use crate::task::config::TaskConfig;
+use crate::app::context::Context;
 
 
 /// RabbitMQ Broker
@@ -50,7 +51,7 @@ impl Broker for RabbitMQBroker{
     /// # Arguments
     /// * `runtime` - Tokio runtime to create the future on
     fn create_fut(&mut self, runtime: &Runtime) {
-
+        unimplemented!()
     }
 
     /// Start the broker futures
@@ -63,7 +64,7 @@ impl Broker for RabbitMQBroker{
     /// # Arguments
     /// * `idx` - Index of the future to drop
     fn drop_future(&mut self, idx: usize) {
-
+        unimplemented!()
     }
 
     /// Teardown the broker
@@ -95,10 +96,12 @@ impl Broker for RabbitMQBroker{
     }
 }
 
+async fn start_future(config: CannonConfig, channel: Channel){
+
+}
 
 /// Rabbit MQ broker
 impl RabbitMQBroker{
-
 
     /// Create the exchange
     ///
@@ -108,9 +111,18 @@ impl RabbitMQBroker{
     /// * `durabe` - Whether the exchange persists
     /// * `exchange` - Name of the exchange
     /// * `exchange_type` - The exchange type
-    async fn create_exchange(config: &CannonConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeKind) -> Result<bool, ExchangeError> {
-        //channel.exchange_declare(exchange, exchange_type,);
-        Ok(true)
+    /// * `nowait` - Whether to wait for the exchange to be created
+    async fn do_create_exchange(config: &CannonConfig, channel: &Channel, durable: bool, exchange: String, exchange_type: ExchangeKind, nowait: bool) -> Result<bool, ExchangeError> {
+        let mut opts = ExchangeDeclareOptions::default();
+        opts.durable = durable;
+        opts.nowait = nowait;
+        let ftable = lapin::types::FieldTable::default();
+        let res = channel.exchange_declare(exchange.as_str(), exchange_type, opts, ftable).await;
+        if res.is_ok() {
+            Ok(true)
+        }else{
+            Err(ExchangeError)
+        }
     }
 
     /// Create a queue
@@ -124,7 +136,7 @@ impl RabbitMQBroker{
     /// * `uuid` - Unique id for the message e
     /// * `exchange` - Name of the exchange
     /// * `routing_key` - Routing key for the exchange
-    async fn create_queue(config: &CannonConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
+    async fn do_create_queue(config: &CannonConfig, channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
         unimplemented!()
     }
 
@@ -136,7 +148,7 @@ impl RabbitMQBroker{
     /// * `exchange` - Name of the exchange
     /// * `queue` - Name of the queue to bind
     /// * `routing_key` - Name of the routing key
-    async fn bind_to_exchange(config: &CannonConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError> {
+    async fn do_bind_to_exchange(config: &CannonConfig, channel: &Channel, exchange: String, queue: String, routing_key: String) -> Result<bool, ExchangeError> {
         unimplemented!()
     }
 
@@ -165,7 +177,7 @@ impl RabbitMQBroker{
     }
 
     /// get a channel from the pool
-    pub fn get_channel(&mut self) -> Channel{
+    fn get_channel(&mut self) -> Channel{
         unimplemented!()
     }
 

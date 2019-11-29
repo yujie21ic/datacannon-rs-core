@@ -7,10 +7,8 @@
 use std::vec::Vec;
 
 use crate::AmqpValue;
-use amq_protocol::types::AMQPType;
 use serde_json::Value;
 
-use crate::serde_utils::val_handler::value_to_amqp_value;
 use crate::argparse::argtype::{ArgType, arg_to_amqp_value, arg_to_value};
 
 
@@ -75,7 +73,6 @@ impl Args{
 
 #[cfg(test)]
 mod tests{
-    use amq_protocol::types::AMQPType;
     use serde_json::Value;
 
     use super::*;

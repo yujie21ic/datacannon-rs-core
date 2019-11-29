@@ -5,13 +5,10 @@
 //! ---
 
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::Sender;
 
 use crate::app::send_rpc::SendArgs;
-use crate::argparse::argtype::ArgType;
 use crate::broker::amqp::rabbitmq::RabbitMQBroker;
 use crate::broker::kafka::kafka::KafkaBroker;
-use crate::message_protocol::message::Message;
 use crate::statistics::message::Statistics;
 use crate::task::config::TaskConfig;
 use crate::message_protocol::message_body::MessageBody;
@@ -48,8 +45,8 @@ pub enum CommunicationEvent{
 #[derive(Clone, Debug)]
 pub enum BrokerEvent{
     SEND(SendArgs),
-    GET_STATS,
-    POISON_PILL
+    GETSTATS,
+    POISONPILL
 }
 
 

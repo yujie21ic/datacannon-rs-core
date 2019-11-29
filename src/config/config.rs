@@ -12,7 +12,6 @@ use num_cpus;
 use crate::argparse::argtype::ArgType;
 use crate::backend::config::BackendConfig;
 use crate::connection::connection::ConnectionConfig;
-use crate::message_structure::queues::{GenericQueue};
 use crate::replication::replication::HAPolicy;
 use crate::router::router::Routers;
 

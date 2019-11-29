@@ -7,7 +7,6 @@
 use std::collections::{BTreeMap, HashMap};
 
 use amq_protocol_types::*;
-use lapin::types::FieldTable;
 use serde_json::{Map, Value};
 
 use crate::AmqpValue;

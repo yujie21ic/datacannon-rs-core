@@ -8,11 +8,9 @@ use crate::argparse::args::Args;
 use crate::argparse::kwargs::KwArgs;
 use crate::config::config::CannonConfig;
 use uuid::Uuid;
-use chrono::Utc;
 use crate::message_protocol::message_body::MessageBody;
 use crate::message_protocol::message::Message;
 use crate::message_protocol::properties::Properties;
-use crate::message_protocol::headers::Headers;
 
 
 /// Task Configuration

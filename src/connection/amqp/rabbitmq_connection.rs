@@ -9,7 +9,6 @@ use tokio::runtime::Runtime;
 use crate::connection::amqp::rabbitmq_connection_utils;
 use crate::connection::amqp::connection_inf::AMQPConnectionInf;
 use crate::error::connection_failed::ConnectionFailed;
-use crate::connection::connection::ConnectionConfig::RabbitMQ;
 
 
 /// Connection object containing a connection and a channel
