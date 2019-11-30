@@ -123,12 +123,7 @@ impl AMQPQueueHandler for AMQPQueue {
     /// * `channel` - The `amiquip::Channel` for dropping messages
     /// * `config` - The `crate::config::config::CannonConfig` for the app
     fn drop(&self, channel: &Channel, config: &CannonConfig) -> Result<bool, QueueError>{
-        let r = RabbitMQBroker::do_drop_queue(config, channel, self.name.clone());
-        if r.is_ok(){
-            Ok(true)
-        }else {
-            Err(QueueError)
-        }
+        unimplemented!()
     }
 }
 

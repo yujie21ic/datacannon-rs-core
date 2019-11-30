@@ -30,10 +30,10 @@ pub struct RabbitMQConnectionPool{
 impl Pool for RabbitMQConnectionPool{
 
     /// Drop all connections
-    fn drop_connections(&mut self) {
+    fn drop_connections(&mut self, context: &mut Context) {
         for i in 0..self.connections.len(){
             let conn = self.connections.get(i).unwrap();
-            let r = self.runtime.block_on( async move {
+            let r = context.get_runtime().block_on( async move {
                 conn.connection.close(200, "Complete").await
             });
         }
@@ -41,8 +41,8 @@ impl Pool for RabbitMQConnectionPool{
     }
 
     /// Close the pool
-    fn close(&mut self) {
-        self.drop_connections();
+    fn close(&mut self, context: &mut Context) {
+        self.drop_connections(context);
     }
 }
 
@@ -96,17 +96,13 @@ impl RabbitMQConnectionPool{
                 }
             }
             if conn_vec.len() == num_conn {
-                if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
-                    let rmq = RabbitMQConnectionPool {
-                        connections: conn_vec,
-                        connection_config: conn_inf,
-                        min_connections: num_conn,
-                        current_connection: 0,
-                    };
-                    Ok(rmq)
-                } else {
-                    Err(PoolCreationError)
-                }
+                let rmq = RabbitMQConnectionPool {
+                    connections: conn_vec,
+                    connection_config: conn_inf,
+                    min_connections: num_conn,
+                    current_connection: 0,
+                };
+                Ok(rmq)
             }else{
                 Err(PoolCreationError)
             }
@@ -133,9 +129,7 @@ pub mod test{
 
     use super::*;
 
-    fn get_rmq_pool_for_fail() -> Result<RabbitMQConnectionPool, PoolCreationError>{
-        let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-        let mut ctx = Context::new(rt);
+    fn get_rmq_pool_for_fail(context: &mut Context) -> Result<RabbitMQConnectionPool, PoolCreationError>{
         let ssl_conf = SSLConfig::new(None, false, "".to_string(), 5000,None);
         let amq_conf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 5272, Some("test".to_string()), Some("dev".to_string()), Some("rtp*4500".to_string()), false, Some(ssl_conf),None,1000);
         let conn_conf = ConnectionConfig::RabbitMQ(amq_conf);
@@ -148,7 +142,7 @@ pub mod test{
         let routers = Routers::new();
         let mut cannon_conf = CannonConfig::new(conn_conf,backend_conf, routers);
         cannon_conf.num_broker_connections = 1;
-        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, &mut ctx, true);
+        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, context, true);
         rmq_pool
     }
 
@@ -177,23 +171,22 @@ pub mod test{
 
     #[test]
     fn should_create_connection_pool(){
-        let pool_res = get_rmq_pool();
+        let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+        let mut context = Context::new(rt);
+        let pool_res = do_get_rmq_pool(&mut context);
         assert!(pool_res.is_ok());
-        pool_res.unwrap().close();
+        pool_res.unwrap().close(&mut context);
     }
 
     #[test]
     fn should_setup_pool(){
         let p = panic::catch_unwind(||{
-            let pool_res = get_rmq_pool();
+            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+            let mut context = Context::new(rt);
+            let pool_res = do_get_rmq_pool(&mut context);
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
-            let ps = pool.setup();
-            if ps.is_ok() {
-                pool.close();
-            }else{
-                panic!("Pool Failed");
-            }
+            pool.close(&mut context);
         });
         assert!(p.is_ok());
     }
@@ -201,12 +194,12 @@ pub mod test{
     #[test]
     fn should_close_pool(){
         let p = panic::catch_unwind(||{
-            let pool_res = get_rmq_pool();
+            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+            let mut context = Context::new(rt);
+            let pool_res = do_get_rmq_pool(&mut context);
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
-            let is_setup = pool.setup();
-            assert!(is_setup.is_ok());
-            pool.close();
+            pool.close(&mut context);
             assert!(pool.get_pool_size() == 0);
         });
         assert!(p.is_ok());
@@ -220,15 +213,10 @@ pub mod test{
             let pool_res = do_get_rmq_pool(&mut context);
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
-            let is_setup = pool.setup();
-            let setup_panic = panic::catch_unwind(||{
-                assert!(is_setup.is_ok());
-            });
 
             let ch = pool.get_channel(&mut context);
-            pool.close();
+            pool.close(&mut context);
             assert!(ch.is_ok());
-            assert!(setup_panic.is_ok());
             assert!(pool.get_pool_size() == 0);
         });
         assert!(p.is_ok());
@@ -237,15 +225,12 @@ pub mod test{
     #[test]
     fn should_fail_gracefully(){
         let p = panic::catch_unwind(||{
-            let pool_res = get_rmq_pool_for_fail();
+            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+            let mut context = Context::new(rt);
+            let pool_res = get_rmq_pool_for_fail(&mut context);
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
-            let is_setup = pool.setup();
-            let setup_panic =panic::catch_unwind(||{
-                assert!(is_setup.is_err());
-            });
-            pool.close();
-            assert!(setup_panic.is_ok());
+            pool.close(&mut context);
             assert!(pool.get_pool_size() == 0);
         });
         assert!(p.is_ok());

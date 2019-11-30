@@ -9,6 +9,7 @@ use crate::message_protocol::message::Message;
 
 
 /// Broker Message
+#[derive(Clone, Debug)]
 pub enum BrokerMessage{
     TASK(Task),
     POISONPILL,
@@ -16,6 +17,8 @@ pub enum BrokerMessage{
 }
 
 
+/// Task types common to queue based brokers
+#[derive(Clone, Debug)]
 pub enum TaskType{
     CREATEQUEUE(Task),
     CREATEEXCHANGE(Task),
@@ -25,6 +28,7 @@ pub enum TaskType{
 
 
 /// Task structure
+#[derive(Clone, Debug)]
 pub struct Task{
     task: TaskConfig,
     message: Message,

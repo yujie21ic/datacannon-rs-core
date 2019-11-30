@@ -5,18 +5,18 @@
 //! ---
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
-use amq_protocol_types::{AMQPValue, FieldTable, ShortUInt};
-use amq_protocol_types::AMQPType::ShortString;
+use amq_protocol_types::{AMQPValue, ShortUInt, ShortString};
 use lapin::{Channel, ExchangeKind};
 use lapin::options::*;
+use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc;
 
 use crate::app::context::Context;
-use crate::broker::broker::{Broker, BrokerEvent, CommunicationEvent};
+use crate::broker::broker::Broker;
 use crate::broker::message::communication::CommunicationEvent;
 use crate::broker::message::protocol::BrokerMessage;
 use crate::config::config::CannonConfig;
@@ -33,6 +33,8 @@ use crate::router::router::Router;
 use crate::statistics::message::Statistics;
 use crate::task::config::TaskConfig;
 use crate::connection::amqp::rabbit_mq_connection_pool::RabbitMQConnectionPool;
+use crate::error::future_creation_error::FutureCreationError;
+use crate::error::pool_creation_error::PoolCreationError;
 
 
 /// RabbitMQ Broker
@@ -46,11 +48,13 @@ use crate::connection::amqp::rabbit_mq_connection_pool::RabbitMQConnectionPool;
 /// * `num_failures` - Number of failures
 pub struct RabbitMQBroker{
     config: CannonConfig,
-    event_senders: Vec<UnboundedSender<BrokerEvent>>,
-    comm_receivers: Vec<UnboundedReceiver<CommunicationEvent>>,
-    num_failure: i32,
+    event_senders: Vec<Sender<CommunicationEvent>>,
+    comm_receivers: Vec<Receiver<CommunicationEvent>>,
+    num_failure: u8,
+    calls_per_failure: u8,
     current_future: i8,
     connection_pool: RabbitMQConnectionPool,
+    message_size: usize,
 }
 
 
@@ -60,15 +64,15 @@ impl Broker for RabbitMQBroker{
     /// Restart a future when another future completes (called when another terminates)
     ///
     /// # Arguments
-    /// * `runtime` - Tokio runtime to create the future on
-    fn create_fut(&mut self, runtime: &Runtime) {
-        let channel = self.connection_pool.get_channel();
-        if channel.is_ok()
-    }
-
-    /// Start the broker futures
-    fn setup(&mut self, runtime: &Runtime){
-        unimplemented!()
+    /// * `context` - Context cantaining the Tokio runtime
+    fn create_fut(&mut self, context: &mut Context) -> Result<bool, FutureCreationError>{
+        let channel = self.connection_pool.get_channel(context);
+        if channel.is_ok(){
+            let (task_sender, task_receiver): (Sender<BrokerMessage>, Receiver<BrokerMessage>) = tokio::sync::mpsc::channel(self.message_size);
+            Ok(true)
+        }else{
+            Err(FutureCreationError)
+        }
     }
 
     /// Drop the future
@@ -94,7 +98,7 @@ impl Broker for RabbitMQBroker{
     /// # Arguments
     /// * `runtime` - Tokio runtime to send task on
     /// * `task` - The task config
-    fn send_task(&mut self, runtime: &Runtime, task: TaskConfig, message_body: Option<MessageBody>) {
+    fn send_task(&mut self, context: &mut Context, task: TaskConfig, message_body: Option<MessageBody>) {
         unimplemented!()
     }
 
@@ -103,7 +107,7 @@ impl Broker for RabbitMQBroker{
     /// # Arguments
     /// * `runtime` - Runtime for the application
     /// * `config` - The Cannon Configuration for the application
-    fn subscribe_to_queues(&mut self, runtime: &Runtime, config: &CannonConfig){
+    fn subscribe_to_queues(&mut self, runtime: &mut Context, config: &CannonConfig){
         unimplemented!()
     }
 }
@@ -116,34 +120,31 @@ impl RabbitMQBroker{
     ///
     /// # Arguments
     /// * `channel` - A dedicated `lapin::Channel`
-    /// * `task_receiver` - A dedicated `tokio::sync::mpsc::Receiver` for tasks
     /// * `comm_receiver` - A dedicated `tokio::sync::mpsc::Receiver` for communications
     /// * `sender` - A `tokio::sync::mpsc::Sender` for responding to communications events and notifying of completion
-    async fn start_future(channel: Channel, task_receiver: Receiver<BrokerMessage>, comm_receiver: Receiver<CommunicationEvent>, sender: Sender<CommunicationEvent>){
+    async fn start_future(channel: Channel, comm_receiver: Receiver<CommunicationEvent>, sender: Sender<CommunicationEvent>){
         let mut messages_processed = 0;
         let mut messages_sent = 0;
+        let mut fut_comm_receiver = comm_receiver;
+        let mut fut_sender = sender.clone();
         loop{
-            let task_result  = task_receiver.recv_timeout(Duration::from_millis(5000));
-            if task_result.is_ok(){
-
-            }
-            let event_result = comm_receiver.try_recv();
-            if event_result.is_ok(){
+            let event_result = fut_comm_receiver.recv().await;
+            if event_result.is_some(){
                 let event = event_result.unwrap();
                 if let CommunicationEvent::GETSTATISTCS = event{
                     let stats = Statistics{
                         messages_sent: messages_sent.clone(),
                         messages_received: messages_processed.clone(),
                     };
-                    let response = CommunicationEvent::STATISTICS(response);
-                    sender.send(response);
+                    let response = CommunicationEvent::STATISTICS(stats);
+                    fut_sender.send(response);
                 }else if let CommunicationEvent::COMPLETE = event{
                     let response = CommunicationEvent::COMPLETE;
-                    sender.send(response);
+                    fut_sender.send(response);
                     break;
                 }else if let CommunicationEvent::PING = event{
                     let response = CommunicationEvent::PONG;
-                    sender.send(response);
+                    fut_sender.send(response);
                 }
             }
         }
@@ -155,11 +156,10 @@ impl RabbitMQBroker{
     /// * `channel` - The channel to use in setting the limit
     /// * `limit` - Maximum number of messages to prefetch
     /// * `global` - Whether the limit applies to all channels without a specified limit
-    async fn set_prefetch_limit(channel: &Channel, limit: usize, global: bool) -> Result<bool, QosError>{
-        let amq_limit = amq_protocol_types::ShortShortInt::from(limit);
+    async fn set_prefetch_limit(channel: &Channel, limit: u16, global: bool) -> Result<bool, QOSError>{
         let mut opts = BasicQosOptions::default();
         opts.global = global;
-        let res = channel.basic_qos(amq_limit, opts);
+        let res = channel.basic_qos(limit, opts).await;
         if res.is_ok(){
             Ok(true)
         }else{
@@ -197,7 +197,7 @@ impl RabbitMQBroker{
     async fn do_drop_exchange(channel: &Channel, exchange: String, nowait: bool) -> Result<bool, ExchangeError> {
         let mut opts = ExchangeDeleteOptions::default();
         opts.nowait = nowait;
-        let res = channel.exchange_delete(exchange, opts);
+        let res = channel.exchange_delete(exchange.as_str(), opts).await;
         if res.is_ok() {
             Ok(true)
         }else{
@@ -209,12 +209,15 @@ impl RabbitMQBroker{
     ///
     /// # Arguments
     /// * `channel` - A reference to a `amiquip::Channel`
+    /// * `durable` - Whether the queue is durable
     /// * `queue` - The name of the queue
     /// * `nowait` - Drop the queue
-    async fn do_create_queue(channel: &Channel, durable: bool, queue: String, declare_exchange: bool, uuid: String, exchange: Option<String>, routing_key: Option<String>) -> Result<bool, QueueError>{
-        let opts = QueueDeleteOptions::default();
+    async fn do_create_queue(channel: &Channel, durable: bool, queue: String, nowait: bool) -> Result<bool, QueueError>{
+        let mut opts = QueueDeclareOptions::default();
         opts.nowait = nowait;
-        let res = channel.queue_delete(queue, opts).await;
+        opts.durable = durable;
+        let args = lapin::types::FieldTable::default();
+        let res = channel.queue_declare(queue.as_str(), opts, args).await;
         if res.is_ok(){
             Ok(true)
         }else{
@@ -232,7 +235,7 @@ impl RabbitMQBroker{
     async fn purge_queue(channel: &Channel, queue: String, nowait: bool) -> Result<bool, QueueError>{
         let mut opts = QueuePurgeOptions::default();
         opts.nowait = nowait;
-        let res = channel.queue_purge(queue, opts);
+        let res = channel.queue_purge(queue.as_str(), opts).await;
         if res.is_ok(){
             Ok(true)
         }else{
@@ -249,7 +252,7 @@ impl RabbitMQBroker{
     async fn do_drop_queue(channel: &Channel, queue: String, nowait: bool) -> Result<bool, QueueError>{
         let mut opts = QueueDeleteOptions::default();
         opts.nowait = nowait;
-        let res = channel.queue_delete(queue, opts);
+        let res = channel.queue_delete(queue.as_str(), opts).await;
         if res.is_ok(){
             Ok(true)
         }else{
@@ -268,9 +271,8 @@ impl RabbitMQBroker{
     async fn do_bind_to_exchange(channel: &Channel, exchange: String, queue: String, routing_key: String, nowait: bool) -> Result<bool, ExchangeError> {
         let mut opts = ExchangeBindOptions::default();
         opts.nowait = nowait;
-        let bmap = BTreeMap::<ShortString, AMQPValue>::new();
-        let args = FieldTable(bmap);
-        let res = channel.exchange_bind(exchange, queue, routing_key, opts, args);
+        let args = lapin::types::FieldTable::default();
+        let res = channel.exchange_bind(exchange.as_str(), queue.as_str(), routing_key.as_str(), opts, args).await;
         if res.is_ok(){
             Ok(true)
         }else{
@@ -285,11 +287,11 @@ impl RabbitMQBroker{
     /// * `exchange` - Name of the exchange to use
     /// * `routing_key` - Name of the routing key
     /// * `message` - Message containing relevant properties
-    async fn do_send(channel: &Channel, exchange: Option<String>, routing_key: Option<String>, message: Message) -> Result<bool, PublishError> {
+    async fn do_send(channel: &Channel, exchange: String, routing_key: String, message: Message) -> Result<bool, PublishError> {
         let opts = BasicPublishOptions::default();
         let amq_props = message.properties.clone().convert_to_amqp_properties();
         let payload = message.get_message_payload();
-        let chan_result = channel.basic_publish(exchange, routing_key, options, amq_props).await;
+        let chan_result = channel.basic_publish(exchange.as_str(), routing_key.as_str(), opts, payload, amq_props).await;
         if chan_result.is_ok(){
             Ok(true)
         }else{
@@ -302,8 +304,29 @@ impl RabbitMQBroker{
     /// # Arguments
     /// * `config` - The configuration for the application
     /// * `routers` - Routers maintained and checked by the broker
-    pub fn new(config: &mut CannonConfig, routers: Option<HashMap<String, Router>>) -> Result<RabbitMQBroker, BrokerTypeError>{
-        unimplemented!()
+    pub fn new(config: &mut CannonConfig, routers: Option<HashMap<String, Router>>) -> Result<RabbitMQBroker, PoolCreationError>{
+        let rt = tokio::runtime::Builder::new().num_threads(config.num_broker_threads.clone()).enable_all().build();
+        if rt.is_ok() {
+            let mut ctx = Context::new(rt.ok().unwrap());
+            let conn_pool = RabbitMQConnectionPool::new(config, &mut ctx, true);
+            if conn_pool.is_ok() {
+                let rmq = RabbitMQBroker {
+                    config: config.clone(),
+                    event_senders: Vec::<Sender<CommunicationEvent>>::new(),
+                    comm_receivers: Vec::<Receiver<CommunicationEvent>>::new(),
+                    num_failure: config.maximum_allowed_failures.clone(),
+                    calls_per_failure: config.maximum_allowed_failures_per_n_calls,
+                    current_future: 0,
+                    connection_pool: conn_pool.ok().unwrap(),
+                    message_size: config.message_size.clone(),
+                };
+                Ok(rmq)
+            }else{
+                Err(PoolCreationError)
+            }
+        }else{
+            Err(PoolCreationError)
+        }
     }
 }
 

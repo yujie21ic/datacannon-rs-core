@@ -1,8 +1,10 @@
 pub mod backend_type_error;
 pub mod broker_type_error;
+pub mod channel_attainment_failed;
 pub mod channel_creation_failed;
 pub mod connection_failed;
 pub mod exchange_error;
+pub mod future_creation_error;
 pub mod pool_is_empty_error;
 pub mod pool_creation_error;
 pub mod publish_error;

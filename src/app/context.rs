@@ -4,7 +4,7 @@
 //! author: Andrew Evans
 //! ---
 
-use tokio::runtime::Runtime
+use tokio::runtime::Runtime;
 
 
 /// Context storing runtime and runtime metadata

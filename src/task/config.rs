@@ -26,6 +26,7 @@ use crate::message_protocol::headers::Headers;
 /// * `soft_time_limit` - Soft time limit for the Task
 /// * `eta` - Estimated time of arrival
 /// * `retries` - Number of retries
+#[derive(Clone, Debug)]
 pub struct TaskConfig{
     task_name: String,
     args: Option<Args>,
@@ -129,7 +130,7 @@ impl TaskConfig{
             mbody = message_body.unwrap();
         }
         let headers = Headers::new(self.lang.clone(), self.task_name.clone(), self.correlation_id.clone(), root);
-        let m = Message::new(properties, headers, mbody, self.args, self.kwargs);
+        let m = Message::new(properties, headers, mbody, self.args.clone(), self.kwargs.clone());
         m
     }
 
@@ -179,7 +180,7 @@ impl TaskConfig{
             targs = Some(args.unwrap());
         }
 
-        let mut tkwargs: Option<Kwargs> = None;
+        let mut tkwargs: Option<KwArgs> = None;
         if kwargs.is_some(){
             tkwargs = Some(kwargs.unwrap());
         }

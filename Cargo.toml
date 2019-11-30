@@ -25,5 +25,5 @@ native-tls = "0.2.3"
 tcp-stream = "0.8.0"
 
 [dependencies.tokio]
-version="0.2.1"
-features=["macros", "time", "sync"]
+version="0.2.2"
+features=["time", "sync"]

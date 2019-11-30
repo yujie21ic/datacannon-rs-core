@@ -5,6 +5,7 @@
 //! ---
 
 use crate::statistics::message::Statistics;
+use crate::broker::message::protocol::TaskType;
 
 
 /// For receiving a communication event
@@ -12,6 +13,7 @@ use crate::statistics::message::Statistics;
 pub enum CommunicationEvent{
     ACKNOWLEDGMENT,
     STATISTICS(Statistics),
+    TASK(TaskType),
     GETSTATISTCS,
     COMPLETE,
     PING,
