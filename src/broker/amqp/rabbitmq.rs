@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
-use amq_protocol_types::{AMQPValue, ShortUInt, ShortString};
+use amq_protocol_types::{AMQPValue, ShortString, ShortUInt};
 use lapin::{Channel, ExchangeKind};
 use lapin::options::*;
 use tokio::prelude::*;
@@ -18,10 +18,14 @@ use tokio::sync::mpsc;
 use crate::app::context::Context;
 use crate::broker::broker::Broker;
 use crate::broker::message::communication::CommunicationEvent;
-use crate::broker::message::protocol::BrokerMessage;
+use crate::broker::message::task::{BrokerMessage, TaskType};
+use crate::broker::structs::future_struct::BrokerFuture;
 use crate::config::config::CannonConfig;
+use crate::connection::amqp::rabbit_mq_connection_pool::RabbitMQConnectionPool;
 use crate::error::broker_type_error::BrokerTypeError;
 use crate::error::exchange_error::ExchangeError;
+use crate::error::future_creation_error::FutureCreationError;
+use crate::error::pool_creation_error::PoolCreationError;
 use crate::error::publish_error::PublishError;
 use crate::error::qos_error::QOSError;
 use crate::error::queue_error::QueueError;
@@ -32,9 +36,6 @@ use crate::message_protocol::properties::Properties;
 use crate::router::router::Router;
 use crate::statistics::message::Statistics;
 use crate::task::config::TaskConfig;
-use crate::connection::amqp::rabbit_mq_connection_pool::RabbitMQConnectionPool;
-use crate::error::future_creation_error::FutureCreationError;
-use crate::error::pool_creation_error::PoolCreationError;
 
 
 /// RabbitMQ Broker
@@ -48,8 +49,7 @@ use crate::error::pool_creation_error::PoolCreationError;
 /// * `num_failures` - Number of failures
 pub struct RabbitMQBroker{
     config: CannonConfig,
-    event_senders: Vec<Sender<CommunicationEvent>>,
-    comm_receivers: Vec<Receiver<CommunicationEvent>>,
+    broker_futures: Vec<BrokerFuture>,
     num_failure: u8,
     calls_per_failure: u8,
     current_future: i8,
@@ -68,7 +68,14 @@ impl Broker for RabbitMQBroker{
     fn create_fut(&mut self, context: &mut Context) -> Result<bool, FutureCreationError>{
         let channel = self.connection_pool.get_channel(context);
         if channel.is_ok(){
-            let (task_sender, task_receiver): (Sender<BrokerMessage>, Receiver<BrokerMessage>) = tokio::sync::mpsc::channel(self.message_size);
+            let (comm_sender, fut_comm_receiver): (Sender<CommunicationEvent>, Receiver<CommunicationEvent>) = tokio::sync::mpsc::channel(self.message_size);
+            let (fut_comm_sender, comm_receiver) : (Sender<CommunicationEvent>, Receiver<CommunicationEvent>) = tokio::sync::mpsc::channel(self.message_size);
+            let fut = RabbitMQBroker::start_future(channel.unwrap(), fut_comm_receiver, fut_comm_sender);
+            let r = context.get_runtime().spawn(async move{
+                fut.await
+            });
+            let bfut = BrokerFuture::new(r, comm_sender, comm_receiver);
+            self.broker_futures.push(bfut);
             Ok(true)
         }else{
             Err(FutureCreationError)
@@ -119,10 +126,12 @@ impl RabbitMQBroker{
     /// Start a future that receives and sends messages
     ///
     /// # Arguments
+    /// * `config` - Application configuration
     /// * `channel` - A dedicated `lapin::Channel`
     /// * `comm_receiver` - A dedicated `tokio::sync::mpsc::Receiver` for communications
     /// * `sender` - A `tokio::sync::mpsc::Sender` for responding to communications events and notifying of completion
-    async fn start_future(channel: Channel, comm_receiver: Receiver<CommunicationEvent>, sender: Sender<CommunicationEvent>){
+    async fn start_future(config: CannonConfig, channel: Channel, comm_receiver: Receiver<CommunicationEvent>, sender: Sender<CommunicationEvent>){
+        let fut_config = config.clone();
         let mut messages_processed = 0;
         let mut messages_sent = 0;
         let mut fut_comm_receiver = comm_receiver;
@@ -131,20 +140,50 @@ impl RabbitMQBroker{
             let event_result = fut_comm_receiver.recv().await;
             if event_result.is_some(){
                 let event = event_result.unwrap();
-                if let CommunicationEvent::GETSTATISTCS = event{
+                if let CommunicationEvent::TASK(event) = event {
+                    match event{
+                        TaskType::SENDTASK(event) => {
+                            let cfg = event.get_task_config();
+                            let message_body = event.get_body();
+                            let message_root_id = event.get_root_id();
+                            let msg = cfg.to_amqp_message(&fut_config, message_body, message_root_id);
+                            let r= RabbitMQBroker::do_send(&channel, event.get_exchange(), event.get_routing_key(), msg).await;
+                        },
+                        TaskType::CREATEEXCHANGE(event) =>{
+                            
+                        },
+                        TaskType::CREATEQUEUE(event) => {
+
+                        },
+                        TaskType::BINDTOEXCHANGE(event) => {
+
+                        },
+                        TaskType::SETPREFETCHLIMIT(event) =>{
+
+                        },
+                        TaskType::DROPQUEUE(event) =>{
+
+                        },
+                        TaskType::DROPEXCHANGE(event) =>{
+
+                        },
+                    }
+                    let response = CommunicationEvent::ACKNOWLEDGMENT;
+                    fut_sender.send(response).await;
+                }else if let CommunicationEvent::GETSTATISTCS = event{
                     let stats = Statistics{
                         messages_sent: messages_sent.clone(),
                         messages_received: messages_processed.clone(),
                     };
                     let response = CommunicationEvent::STATISTICS(stats);
-                    fut_sender.send(response);
+                    fut_sender.send(response).await;
                 }else if let CommunicationEvent::COMPLETE = event{
                     let response = CommunicationEvent::COMPLETE;
-                    fut_sender.send(response);
+                    fut_sender.send(response).await;
                     break;
                 }else if let CommunicationEvent::PING = event{
                     let response = CommunicationEvent::PONG;
-                    fut_sender.send(response);
+                    fut_sender.send(response).await;
                 }
             }
         }
@@ -312,8 +351,7 @@ impl RabbitMQBroker{
             if conn_pool.is_ok() {
                 let rmq = RabbitMQBroker {
                     config: config.clone(),
-                    event_senders: Vec::<Sender<CommunicationEvent>>::new(),
-                    comm_receivers: Vec::<Receiver<CommunicationEvent>>::new(),
+                    broker_futures: Vec::<BrokerFuture>::new(),
                     num_failure: config.maximum_allowed_failures.clone(),
                     calls_per_failure: config.maximum_allowed_failures_per_n_calls,
                     current_future: 0,

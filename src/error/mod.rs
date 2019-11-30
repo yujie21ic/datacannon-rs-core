@@ -11,4 +11,6 @@ pub mod publish_error;
 pub mod qos_error;
 pub mod queue_error;
 pub mod queue_type_error;
+pub mod receive_error;
+pub mod send_error;
 pub mod ssl_error;

@@ -5,7 +5,7 @@
 //! ---
 
 use crate::statistics::message::Statistics;
-use crate::broker::message::protocol::TaskType;
+use crate::broker::message::task::TaskType;
 
 
 /// For receiving a communication event

@@ -26,4 +26,4 @@ tcp-stream = "0.8.0"
 
 [dependencies.tokio]
 version="0.2.2"
-features=["time", "sync"]
+features=["time", "sync", "rt-core"]
