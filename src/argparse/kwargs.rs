@@ -56,7 +56,7 @@ impl KwArgs{
         vm
     }
 
-    /// Covnert kwargs to map
+    /// Convert kwargs to map
     pub fn convert_to_map(&self) -> Map<String, Value>{
         let vkwarr = self.kwargs.clone();
         let mut vm = Map::new();

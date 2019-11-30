@@ -15,7 +15,7 @@ impl fmt::Display for BackendTypeError{
 
     /// Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Wrong Broker Type")
+        write!(f, "Wrong Backend Type")
     }
 }
 

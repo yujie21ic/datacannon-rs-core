@@ -117,6 +117,12 @@ pub struct Admin{
 /// * `task_retries` - Maximum number of task retries
 /// * `default_lang` - The default language
 /// * `app_lang` - The application language
+/// * `encoding_Type` - String encoding type
+/// * `message_size` - The message buffer size
+/// * `drop_queues_on_close` - Drop all queues on close
+/// * `purge_queues_on_start` - Purge all queues on start
+/// * `drop_exchanges_on_close` - Drop all exchanges on close
+/// * `prefetch_limit` - Rabbitmq prefetch limit
 #[derive(Clone, Debug)]
 pub struct CannonConfig{
     pub connection_inf: ConnectionConfig,
@@ -160,6 +166,11 @@ pub struct CannonConfig{
     pub default_lang: String,
     pub app_lang: String,
     pub encoding_type: String,
+    pub message_size: usize,
+    pub drop_queues_on_close: bool,
+    pub purge_queues_on_start: bool,
+    pub drop_exchanges_on_close: bool,
+    pub prefetch_limit: usize,
 }
 
 
@@ -219,6 +230,11 @@ impl CannonConfig{
     /// * `default_lang` - The default language
     /// * `app_lang` - The application language
     /// * `encoding_Type` - String encoding type
+    /// * `message_size` - The message buffer size
+    /// * `drop_queues_on_close` - Drop all queues on close
+    /// * `purge_queues_on_start` - Purge all queues on start
+    /// * `drop_exchanges_on_close` - Drop all exchanges on close
+    /// * `prefetch_limit` - Rabbitmq prefetch limit
     pub fn new(conn_inf: ConnectionConfig, backend: BackendConfig, routers: Routers) -> CannonConfig{
         CannonConfig{
             connection_inf: conn_inf,
@@ -262,6 +278,11 @@ impl CannonConfig{
             default_lang: "rs".to_string(),
             app_lang: "rs".to_string(),
             encoding_type: "utf-8".to_string(),
+            message_size: 2048,
+            drop_queues_on_close: false,
+            purge_queues_on_start: false,
+            drop_exchanges_on_close: false,
+            prefetch_limit: 10,
         }
     }
 }

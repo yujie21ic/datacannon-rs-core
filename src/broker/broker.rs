@@ -9,7 +9,6 @@ use tokio::runtime::Runtime;
 use crate::app::send_rpc::SendArgs;
 use crate::broker::amqp::rabbitmq::RabbitMQBroker;
 use crate::broker::kafka::kafka::KafkaBroker;
-use crate::statistics::message::Statistics;
 use crate::task::config::TaskConfig;
 use crate::message_protocol::message_body::MessageBody;
 use crate::config::config::CannonConfig;
@@ -20,33 +19,10 @@ use crate::config::config::CannonConfig;
 /// # Arugments
 /// * `RabbitMQ` - RabbitMQ broker
 /// * `Kafka` - Kafka broker
+#[derive(Clone, Debug)]
 pub enum AvailableBroker{
     RabbitMQ(RabbitMQBroker),
     Kafka(KafkaBroker),
-}
-
-
-/// For receiving a communication event
-///
-/// # Arguments
-/// * `PING` - For ascertaining health
-pub enum CommunicationEvent{
-    STATISTICS(Statistics),
-    COMPLETE,
-    PING
-}
-
-
-/// Enum for individual broker events
-///
-/// # Arguments
-/// * `SEND` - For sending messages to the broker
-/// * `POISON_PILL` - Kill the future
-#[derive(Clone, Debug)]
-pub enum BrokerEvent{
-    SEND(SendArgs),
-    GETSTATS,
-    POISONPILL
 }
 
 
@@ -54,7 +30,7 @@ pub enum BrokerEvent{
 pub trait Broker{
 
     /// Restart a future in the broker
-    fn create_fut(&mut self, runtime: &Runtime);
+    fn create_fut(&mut self, runtime: &Runtime) -> Result<bool, >;
 
     /// start the broker
     fn setup(&mut self, runtime: &Runtime);

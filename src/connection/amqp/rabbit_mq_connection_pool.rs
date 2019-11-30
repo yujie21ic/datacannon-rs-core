@@ -15,43 +15,19 @@ use crate::connection::connection::ConnectionConfig;
 use crate::connection::pool_trait::Pool;
 use crate::error::pool_creation_error::PoolCreationError;
 use crate::error::channel_creation_failed::ChannelCreationError;
+use crate::app::context::Context;
 
 
 /// RabbitMQ Connection Pool
-pub struct RabbitMQConnectionPool<'a>{
+pub struct RabbitMQConnectionPool{
     connections: Vec<RabbitMQConnection>,
-    runtime: &'a mut Runtime,
     connection_config: AMQPConnectionInf,
     min_connections: usize,
     current_connection: usize,
 }
 
 /// Implementation of the pool
-impl <'a> Pool for RabbitMQConnectionPool<'a>{
-
-    /// Setup the pool. Will fail if the `number_broker_connections` cannot be made.
-    fn setup(&mut self) -> Result<(), PoolCreationError>{
-        let mut left = self.min_connections - self.connections.len();
-        let mut i = 0;
-        while i < 3 && left > 0 {
-            for i in 0..left {
-                let conn_result = RabbitMQConnection::new(&self.connection_config, self.runtime);
-                if conn_result.is_ok() {
-                    let conn = conn_result.unwrap();
-                    self.connections.push(conn);
-                }else{
-                    println!("Connection Failed");
-                }
-            }
-            left = self.min_connections - self.connections.len();
-            i += 1;
-        }
-        if self.connections.len() == self.min_connections{
-            Ok(())
-        }else{
-            Err(PoolCreationError)
-        }
-    }
+impl Pool for RabbitMQConnectionPool{
 
     /// Drop all connections
     fn drop_connections(&mut self) {
@@ -72,7 +48,7 @@ impl <'a> Pool for RabbitMQConnectionPool<'a>{
 
 
 /// Implementation of the RabbitMQ Connection Pool
-impl <'a> RabbitMQConnectionPool<'a>{
+impl RabbitMQConnectionPool{
 
     /// Get the size of the pool in `std::usize`
     pub fn get_pool_size(&mut self) -> usize{
@@ -80,9 +56,9 @@ impl <'a> RabbitMQConnectionPool<'a>{
     }
 
     /// Get the channel
-    pub fn get_channel(&mut self) -> Result<Channel, ChannelCreationError>{
+    pub fn get_channel(&mut self, context: &mut Context) -> Result<Channel, ChannelCreationError>{
         let c: &RabbitMQConnection = self.connections.get(self.current_connection).unwrap();
-        let ch: Result<Channel, ChannelCreationError> = self.runtime.block_on(async move {
+        let ch: Result<Channel, ChannelCreationError> = context.get_runtime().block_on(async move {
             let channel_result = c.connection.create_channel().await;
             if channel_result.is_ok() {
                 Ok(channel_result.unwrap())
@@ -102,17 +78,38 @@ impl <'a> RabbitMQConnectionPool<'a>{
     /// # Arguments
     /// * `cannon_config` - The application `crate::config::config::CannonConfig`
     /// * `runtime` - The application `tokio::runtime::Runtime`
-    pub fn new(cannon_config: &CannonConfig, runtime: &'a mut Runtime) -> Result<RabbitMQConnectionPool<'a>, PoolCreationError> {
+    /// * `context` - Contains the runtime and runtime meta for the application
+    /// * `is_broker` - Whether the connection pool belongs to a broker
+    pub fn new(cannon_config: &CannonConfig, context: &mut Context, is_broker: bool) -> Result<RabbitMQConnectionPool, PoolCreationError> {
+        let conn_inf = cannon_config.connection_inf.clone();
+        let mut conn_vec = Vec::<RabbitMQConnection>::new();
+        let mut num_conn = cannon_config.num_broker_connections;
+        if is_broker == false{
+            num_conn = cannon_config.num_backend_connections;
+        }
         let conn_inf = cannon_config.connection_inf.clone();
         if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
-            let rmq = RabbitMQConnectionPool {
-                connections: Vec::<RabbitMQConnection>::new(),
-                runtime,
-                connection_config: conn_inf,
-                min_connections: cannon_config.num_broker_connections,
-                current_connection: 0,
-            };
-            Ok(rmq)
+            for i in 0..num_conn {
+                let c = RabbitMQConnection::new(&conn_inf, context.get_runtime());
+                if c.is_ok(){
+                    conn_vec.push(c.ok().unwrap());
+                }
+            }
+            if conn_vec.len() == num_conn {
+                if let ConnectionConfig::RabbitMQ(conn_inf) = conn_inf {
+                    let rmq = RabbitMQConnectionPool {
+                        connections: conn_vec,
+                        connection_config: conn_inf,
+                        min_connections: num_conn,
+                        current_connection: 0,
+                    };
+                    Ok(rmq)
+                } else {
+                    Err(PoolCreationError)
+                }
+            }else{
+                Err(PoolCreationError)
+            }
         }else{
             Err(PoolCreationError)
         }
@@ -136,7 +133,9 @@ pub mod test{
 
     use super::*;
 
-    fn get_rmq_pool_for_fail<'a>(rt: &'a mut Runtime) -> Result<RabbitMQConnectionPool<'a>, PoolCreationError>{
+    fn get_rmq_pool_for_fail() -> Result<RabbitMQConnectionPool, PoolCreationError>{
+        let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+        let mut ctx = Context::new(rt);
         let ssl_conf = SSLConfig::new(None, false, "".to_string(), 5000,None);
         let amq_conf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 5272, Some("test".to_string()), Some("dev".to_string()), Some("rtp*4500".to_string()), false, Some(ssl_conf),None,1000);
         let conn_conf = ConnectionConfig::RabbitMQ(amq_conf);
@@ -149,11 +148,11 @@ pub mod test{
         let routers = Routers::new();
         let mut cannon_conf = CannonConfig::new(conn_conf,backend_conf, routers);
         cannon_conf.num_broker_connections = 1;
-        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, rt);
+        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, &mut ctx, true);
         rmq_pool
     }
 
-    fn get_rmq_pool<'a>(rt: &'a mut Runtime) -> Result<RabbitMQConnectionPool<'a>, PoolCreationError>{
+    fn do_get_rmq_pool(ctx: &mut Context) -> Result<RabbitMQConnectionPool, PoolCreationError>{
         let ssl_conf = SSLConfig::new(None, false, "".to_string(), 5000,None);
         let amq_conf = AMQPConnectionInf::new("amqp".to_string(), "127.0.0.1".to_string(), 5672, Some("test".to_string()), Some("dev".to_string()), Some("rtp*4500".to_string()), false, Some(ssl_conf),None,5000);
         let conn_conf = ConnectionConfig::RabbitMQ(amq_conf);
@@ -166,14 +165,19 @@ pub mod test{
         let routers = Routers::new();
         let mut cannon_conf = CannonConfig::new(conn_conf,backend_conf, routers);
         cannon_conf.num_broker_connections = 2;
-        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, rt);
+        let rmq_pool = RabbitMQConnectionPool::new(&cannon_conf, ctx, true);
         rmq_pool
+    }
+
+    fn get_rmq_pool() -> Result<RabbitMQConnectionPool, PoolCreationError> {
+        let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
+        let mut ctx = Context::new(rt);
+        do_get_rmq_pool(&mut ctx)
     }
 
     #[test]
     fn should_create_connection_pool(){
-        let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-        let pool_res = get_rmq_pool(&mut rt);
+        let pool_res = get_rmq_pool();
         assert!(pool_res.is_ok());
         pool_res.unwrap().close();
     }
@@ -181,8 +185,7 @@ pub mod test{
     #[test]
     fn should_setup_pool(){
         let p = panic::catch_unwind(||{
-            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-            let pool_res = get_rmq_pool(&mut rt);
+            let pool_res = get_rmq_pool();
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
             let ps = pool.setup();
@@ -198,8 +201,7 @@ pub mod test{
     #[test]
     fn should_close_pool(){
         let p = panic::catch_unwind(||{
-            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-            let pool_res = get_rmq_pool(&mut rt);
+            let pool_res = get_rmq_pool();
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
             let is_setup = pool.setup();
@@ -214,14 +216,16 @@ pub mod test{
     fn should_get_channel(){
         let p = panic::catch_unwind(||{
             let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-            let pool_res = get_rmq_pool(&mut rt);
+            let mut context = Context::new(rt);
+            let pool_res = do_get_rmq_pool(&mut context);
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
             let is_setup = pool.setup();
             let setup_panic = panic::catch_unwind(||{
                 assert!(is_setup.is_ok());
             });
-            let ch = pool.get_channel();
+
+            let ch = pool.get_channel(&mut context);
             pool.close();
             assert!(ch.is_ok());
             assert!(setup_panic.is_ok());
@@ -233,8 +237,7 @@ pub mod test{
     #[test]
     fn should_fail_gracefully(){
         let p = panic::catch_unwind(||{
-            let mut rt = tokio::runtime::Builder::new().num_threads(1).enable_all().build().unwrap();
-            let pool_res = get_rmq_pool_for_fail(&mut rt);
+            let pool_res = get_rmq_pool_for_fail();
             assert!(pool_res.is_ok());
             let mut pool = pool_res.ok().unwrap();
             let is_setup = pool.setup();

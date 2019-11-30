@@ -15,7 +15,7 @@ impl fmt::Display for SSLError{
 
     /// Display the standard error message
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Failed to Perform Operation on Exchange")
+        write!(f, "SSL Error. Perhaps the handshake failed?")
     }
 }
 

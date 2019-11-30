@@ -4,7 +4,7 @@
 //! author: Andrew Evans
 //! ---
 
-use serde_json::{to_string, Value};
+use serde_json::{to_string, Value, Map};
 
 use crate::AmqpProperties;
 use crate::argparse::args::Args;
@@ -58,6 +58,37 @@ impl Message{
         let bv = Value::Array(body_vec);
         let body_str = to_string(&bv).ok().unwrap();
         (body_str, props)
+    }
+
+    /// Convert the args, kwargs, and chain information to a bytes payload
+    pub fn get_message_payload(&self) -> Vec<u8>{
+        let mut payload_vec = Vec::<Value>::new();
+        if self.args.is_some(){
+            let arg_vec = self.args.clone().unwrap().args_to_vec();
+            payload_vec.push(Value::from(arg_vec));
+        }else{
+            let arg_vec = Vec::<Value>::new();
+            payload_vec.push(Value::from(arg_vec));
+        }
+
+        if self.kwargs.is_some(){
+            let kw = self.kwargs.clone().unwrap().convert_to_map();
+            let kvm = Value::Object(kw);
+            payload_vec.push(kvm);
+        }else{
+            let kvm = Value::from(Map::new());
+            payload_vec.push(kvm);
+        }
+
+        let bmap = self.body.convert_to_json_map();
+        payload_vec.push(Value::from(bmap));
+
+        let jstr = to_string(&payload_vec);
+        if jstr.is_ok(){
+            jstr.ok().unwrap().into_bytes()
+        }else{
+            Vec::<u8>::new()
+        }
     }
 
     /// convert the body to json

@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::message_protocol::message_body::MessageBody;
 use crate::message_protocol::message::Message;
 use crate::message_protocol::properties::Properties;
+use crate::message_protocol::headers::Headers;
 
 
 /// Task Configuration
@@ -27,8 +28,8 @@ use crate::message_protocol::properties::Properties;
 /// * `retries` - Number of retries
 pub struct TaskConfig{
     task_name: String,
-    args: Args,
-    kwargs: KwArgs,
+    args: Option<Args>,
+    kwargs: Option<KwArgs>,
     reply_to: String,
     correlation_id: String,
     result_expires: i64,
@@ -86,12 +87,12 @@ impl TaskConfig{
     }
 
     /// Get the `crate::argparse::kwargs::KwArgs`
-    pub fn get_kwargs(&self) -> KwArgs{
+    pub fn get_kwargs(&self) -> Option<KwArgs>{
         self.kwargs.clone()
     }
 
     /// Get the `crate::argparse::args::Args`
-    pub fn get_args(&self) -> Args{
+    pub fn get_args(&self) -> Option<Args>{
         self.args.clone()
     }
 
@@ -112,14 +113,33 @@ impl TaskConfig{
     /// # Arguments
     /// * `config` - configuration for non-overidden variables
     /// * `message_body` - Message body to add to the message
-    pub fn to_message(&self, config: &CannonConfig, message_body: Option<MessageBody>) -> Message{
+    /// * `root_id` - Originating id for the chain
+    pub fn to_amqp_message(&self, config: &CannonConfig, message_body: Option<MessageBody>, root_id: Option<String>) -> Message{
         let properties = Properties::new(
             self.correlation_id.clone(),
             config.accept_content.clone(),
             config.encoding_type.clone(),
             Some(self.reply_to.clone()));
-        //let headers = Headers::new(self.lang, self.task_name, self.correlation_id, self.);
-            unimplemented!()
+        let mut root = self.correlation_id.clone();
+        if root_id.is_some(){
+            root = root_id.unwrap();
+        }
+        let mut mbody = MessageBody::new(None,None,None, None);
+        if message_body.is_some(){
+            mbody = message_body.unwrap();
+        }
+        let headers = Headers::new(self.lang.clone(), self.task_name.clone(), self.correlation_id.clone(), root);
+        let m = Message::new(properties, headers, mbody, self.args, self.kwargs);
+        m
+    }
+
+    /// Convert to a kafka message
+    ///
+    /// # Arugments
+    /// * `config` - Configuration for hte application
+    /// * `message_body` - Optional Message body
+    pub fn to_kafka_message(&self, config: &CannonConfig, message_body: Option<MessageBody>){
+        unimplemented!()
     }
 
     /// Create a new configuration
@@ -154,14 +174,14 @@ impl TaskConfig{
         lang: Option<String>,
         shadow: Option<String>) -> TaskConfig{
 
-        let mut targs = Args::new();
+        let mut targs: Option<Args> = None;
         if args.is_some(){
-            targs = args.unwrap();
+            targs = Some(args.unwrap());
         }
 
-        let mut tkwargs = KwArgs::new();
+        let mut tkwargs: Option<Kwargs> = None;
         if kwargs.is_some(){
-            tkwargs = kwargs.unwrap();
+            tkwargs = Some(kwargs.unwrap());
         }
 
         let mut corrid = format!("{}", Uuid::new_v4());

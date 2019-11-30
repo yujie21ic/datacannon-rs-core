@@ -6,6 +6,7 @@ pub mod exchange_error;
 pub mod pool_is_empty_error;
 pub mod pool_creation_error;
 pub mod publish_error;
+pub mod qos_error;
 pub mod queue_error;
 pub mod queue_type_error;
 pub mod ssl_error;
